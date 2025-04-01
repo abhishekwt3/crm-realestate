@@ -1,0 +1,156 @@
+crm-app/
+├── .env.local                        # Environment variables
+├── package.json                      # Project dependencies and scripts
+├── next.config.js                    # Next.js configuration
+├── middleware.js                     # Authentication middleware
+├── prisma/
+│   ├── schema.prisma                 # Prisma schema definition
+│   └── migrations/                   # Database migrations
+│
+├── lib/
+│   ├── auth.js                       # Authentication utilities
+│   ├── prisma.js                     # Prisma client setup
+│   └── supabase.js                   # Supabase client setup
+│
+├── public/
+│   ├── images/                       # Static images
+│   └── favicon.ico                   # Favicon
+│
+├── app/
+│   ├── api/                          # API routes
+│   │   ├── auth/
+│   │   │   ├── login/route.js        # Login API
+│   │   │   └── register/route.js     # Registration API
+│   │   │
+│   │   ├── organizations/
+│   │   │   ├── route.js              # GET all, POST new organization
+│   │   │   └── [id]/route.js         # GET, PUT, DELETE single organization
+│   │   │
+│   │   ├── team/
+│   │   │   ├── route.js              # GET all, POST new team member
+│   │   │   └── [id]/route.js         # GET, PUT, DELETE single team member
+│   │   │
+│   │   ├── properties/
+│   │   │   ├── route.js              # GET all, POST new property
+│   │   │   └── [id]/route.js         # GET, PUT, DELETE single property
+│   │   │
+│   │   ├── contacts/
+│   │   │   ├── route.js              # GET all, POST new contact
+│   │   │   └── [id]/route.js         # GET, PUT, DELETE single contact
+│   │   │
+│   │   ├── deals/
+│   │   │   ├── route.js              # GET all, POST new deal
+│   │   │   └── [id]/route.js         # GET, PUT, DELETE single deal
+│   │   │
+│   │   ├── notes/
+│   │   │   ├── route.js              # GET all, POST new note
+│   │   │   └── [id]/route.js         # GET, PUT, DELETE single note
+│   │   │
+│   │   ├── meetings/
+│   │   │   ├── route.js              # GET all, POST new meeting
+│   │   │   └── [id]/route.js         # GET, PUT, DELETE single meeting
+│   │   │
+│   │   ├── tasks/
+│   │   │   ├── route.js              # GET all, POST new task
+│   │   │   └── [id]/route.js         # GET, PUT, DELETE single task
+│   │   │
+│   │   ├── documents/
+│   │   │   ├── route.js              # GET all, POST new document
+│   │   │   └── [id]/route.js         # GET, PUT, DELETE single document
+│   │   │
+│   │   └── dashboard/
+│   │       └── stats/route.js        # GET dashboard statistics
+│   │
+│   ├── (auth)/                       # Authentication group
+│   │   ├── login/page.js             # Login page
+│   │   └── register/page.js          # Registration page
+│   │
+│   ├── dashboard/                    # Dashboard route
+│   │   └── page.js                   # Dashboard main page
+│   │
+│   ├── organizations/                # Organizations routes
+│   │   ├── page.js                   # Organizations list page
+│   │   ├── new/page.js               # Create organization form
+│   │   └── [id]/                     # Organization by ID
+│   │       ├── page.js               # Organization details page
+│   │       └── edit/page.js          # Edit organization form
+│   │
+│   ├── team/                         # Team routes
+│   │   ├── page.js                   # Team members list page
+│   │   ├── new/page.js               # Create team member form
+│   │   └── [id]/                     # Team member by ID
+│   │       ├── page.js               # Team member details page
+│   │       └── edit/page.js          # Edit team member form
+│   │
+│   ├── properties/                   # Properties routes
+│   │   ├── page.js                   # Properties list page
+│   │   ├── new/page.js               # Create property form
+│   │   └── [id]/                     # Property by ID
+│   │       ├── page.js               # Property details page
+│   │       └── edit/page.js          # Edit property form
+│   │
+│   ├── contacts/                     # Contacts routes
+│   │   ├── page.js                   # Contacts list page
+│   │   ├── new/page.js               # Create contact form
+│   │   └── [id]/                     # Contact by ID
+│   │       ├── page.js               # Contact details page
+│   │       └── edit/page.js          # Edit contact form
+│   │
+│   ├── deals/                        # Deals routes
+│   │   ├── page.js                   # Deals list page
+│   │   ├── new/page.js               # Create deal form
+│   │   └── [id]/                     # Deal by ID
+│   │       ├── page.js               # Deal details page
+│   │       └── edit/page.js          # Edit deal form
+│   │
+│   ├── meetings/                     # Meetings routes
+│   │   ├── page.js                   # Meetings list page
+│   │   ├── new/page.js               # Create meeting form
+│   │   └── [id]/                     # Meeting by ID
+│   │       ├── page.js               # Meeting details page
+│   │       └── edit/page.js          # Edit meeting form
+│   │
+│   ├── tasks/                        # Tasks routes
+│   │   ├── page.js                   # Tasks list page
+│   │   ├── new/page.js               # Create task form
+│   │   └── [id]/                     # Task by ID
+│   │       ├── page.js               # Task details page
+│   │       └── edit/page.js          # Edit task form
+│   │
+│   ├── documents/                    # Documents routes
+│   │   ├── page.js                   # Documents list page
+│   │   ├── upload/page.js            # Upload document form
+│   │   └── [id]/page.js              # Document details page
+│   │
+│   ├── components/                   # Shared UI components
+│   │   ├── layout/
+│   │   │   ├── Header.js             # App header with navigation
+│   │   │   ├── Sidebar.js            # Sidebar navigation 
+│   │   │   └── Footer.js             # App footer
+│   │   │
+│   │   ├── ui/
+│   │   │   ├── Button.js             # Button component
+│   │   │   ├── Card.js               # Card component
+│   │   │   ├── Form.js               # Form elements
+│   │   │   ├── Table.js              # Table component
+│   │   │   └── Modal.js              # Modal component
+│   │   │
+│   │   └── dashboard/
+│   │       ├── StatsCard.js          # Dashboard statistics card
+│   │       ├── RecentActivity.js     # Recent activity component
+│   │       └── Chart.js              # Data visualization chart
+│   │
+│   ├── hooks/                        # Custom React hooks
+│   │   ├── useAuth.js                # Authentication hook
+│   │   └── useForm.js                # Form handling hook
+│   │
+│   ├── utils/                        # Utility functions
+│   │   ├── dateUtils.js              # Date formatting utilities
+│   │   └── formatters.js             # Data formatting utilities
+│   │
+│   ├── layout.js                     # Root layout component 
+│   ├── page.js                       # Home page (redirects to dashboard)
+│   ├── globals.css                   # Global CSS styles
+│   └── not-found.js                  # 404 page
+│
+└── node_modules/                     # Dependencies (generated)
