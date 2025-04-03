@@ -1,51 +1,67 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '../providers/AuthProvider';
 import Link from 'next/link';
 
 export default function Dashboard() {
-  const { user, loading, error, checkAuth } = useAuth();
-  const [pageStatus, setPageStatus] = useState('loading');
-  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const checkAuthentication = async () => {
+    const fetchUserData = async () => {
       try {
-        setPageStatus('checking');
+        setLoading(true);
         
-        // If already loaded and no user, redirect
-        if (!loading && !user) {
-          router.push('/login');
+        // Get token from localStorage
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          console.log("No token found, redirecting to login");
+          window.location.href = '/login';
           return;
         }
         
-        // If still loading, wait
-        if (loading) {
-          return;
-        }
+        // Fetch user data using the token
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         
-        // Double-check auth if needed
-        if (!user) {
-          const result = await checkAuth();
-          if (!result.success) {
-            router.push('/login');
+        if (!response.ok) {
+          if (response.status === 401) {
+            // Token invalid or expired
+            localStorage.removeItem('token');
+            window.location.href = '/login';
             return;
           }
+          
+          throw new Error('Failed to fetch user data');
         }
         
-        setPageStatus('loaded');
-      } catch (e) {
-        console.error('Auth check error:', e);
-        setPageStatus('error');
+        const data = await response.json();
+        
+        if (data.authenticated && data.user) {
+          console.log("User authenticated:", data.user);
+          setUser(data.user);
+        } else {
+          // Not authenticated
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+        }
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
     };
     
-    checkAuthentication();
-  }, [user, loading, router, checkAuth]);
+    fetchUserData();
+  }, []);
 
-  if (pageStatus === 'loading' || pageStatus === 'checking' || loading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
         <div className="text-center">
@@ -56,13 +72,13 @@ export default function Dashboard() {
     );
   }
 
-  if (pageStatus === 'error' || error) {
+  if (error) {
     return (
       <div className="bg-red-50 rounded-lg p-6 text-center">
-        <h2 className="text-lg font-medium text-red-800 mb-2">Authentication Error</h2>
-        <p className="text-red-700 mb-4">There was a problem loading your dashboard.</p>
+        <h2 className="text-lg font-medium text-red-800 mb-2">Error</h2>
+        <p className="text-red-700 mb-4">{error}</p>
         <button
-          onClick={() => router.push('/login')}
+          onClick={() => window.location.href = '/login'}
           className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
         >
           Back to Login

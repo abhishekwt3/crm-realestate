@@ -11,10 +11,9 @@ const PUBLIC_ROUTES = [
   '/login-test'
 ];
 
-// List of routes for initial setup that require authentication but not a complete profile
-const SETUP_ROUTES = [
-  '/onboarding/create-organization',
-  '/onboarding/add-team-member',
+// API routes that should always be accessible when authenticated
+const ALWAYS_ACCESSIBLE_API_ROUTES = [
+  '/api/auth/me',
   '/api/organizations',
   '/api/team'
 ];
@@ -42,15 +41,25 @@ export async function middleware(request) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    // Allow setup routes for newly registered users
-    if (SETUP_ROUTES.some(route => path.startsWith(route))) {
-      return NextResponse.next();
+    // Special handling for API routes
+    if (path.startsWith('/api/')) {
+      if (ALWAYS_ACCESSIBLE_API_ROUTES.some(route => path.startsWith(route))) {
+        return NextResponse.next();
+      }
     }
 
     // Check if user needs to complete onboarding
-    // This assumes the decoded token doesn't have org or team info
     if (!decoded.organisation_id) {
-      return NextResponse.redirect(new URL('/onboarding/create-organization', request.url));
+      // Only redirect to onboarding if not already there and not an API call
+      if (!path.startsWith('/onboarding/') && !path.startsWith('/api/')) {
+        return NextResponse.redirect(new URL('/onboarding/create-organization', request.url));
+      }
+      return NextResponse.next();
+    }
+
+    // User is fully onboarded, prevent access to onboarding pages
+    if (path.startsWith('/onboarding/')) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
     // All checks passed

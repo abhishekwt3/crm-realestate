@@ -8,10 +8,8 @@ export default function Home() {
   
   useEffect(() => {
     // Redirect to dashboard or login
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('token='))
-      ?.split('=')[1];
+    const token = localStorage.getItem('token');
+    console.log("Token on home/layout:", token);
     
     if (token) {
       router.push('/dashboard');

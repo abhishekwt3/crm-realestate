@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../providers/AuthProvider';
+import apiClient from '../lib/apiClient';
 
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
@@ -26,50 +27,12 @@ export default function Properties() {
     }
   }, [user, authLoading, router, filter]);
 
-  const getToken = () => {
-    // First try to get token from localStorage
-    const token = localStorage.getItem('token');
-    return token;
-  };
-
   const fetchProperties = async () => {
     try {
       setLoading(true);
       
-      // Get token from localStorage
-      const token = getToken();
-      
-      if (!token) {
-        throw new Error('Authentication required - No token found in localStorage');
-      }
-      
-      // Build URL with filter if provided
-      let url = '/api/properties';
-      if (filter) {
-        url += `?status=${filter}`;
-      }
-      
-      // Fetch properties with authorization header
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include' // Also include cookies for good measure
-      });
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          // If unauthorized, redirect to login
-          router.push('/login');
-          throw new Error('Session expired. Please log in again.');
-        }
-        
-        const data = await response.json();
-        throw new Error(data.error || `Error ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
+      // Fetch properties using apiClient
+      const data = await apiClient.getProperties({ status: filter });
       setProperties(data.properties || []);
     } catch (err) {
       console.error('Error fetching properties:', err);
@@ -139,32 +102,6 @@ export default function Properties() {
         </div>
       </div>
       
-      {/* Login reminder if token missing */}
-      {error && error.includes('No token found') && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-400 p-4 mb-6">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-yellow-700">
-                Session may have expired. Please log in again.
-              </p>
-              <div className="mt-2">
-                <button
-                  onClick={() => router.push('/login')}
-                  className="text-sm text-yellow-700 underline hover:text-yellow-600"
-                >
-                  Go to Login
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
       {/* Loading state */}
       {loading && (
         <div className="flex justify-center py-12">
@@ -172,8 +109,8 @@ export default function Properties() {
         </div>
       )}
       
-      {/* Error state (non-auth errors) */}
-      {error && !loading && !error.includes('No token found') && (
+      {/* Error state */}
+      {error && !loading && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6">
           <div className="flex">
             <div className="flex-shrink-0">

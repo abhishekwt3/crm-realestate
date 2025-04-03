@@ -50,10 +50,10 @@ function Header() {
   const { user, logout } = useAuth();
   const router = useRouter();
   
-  const handleLogout = async () => {
-    await logout();
-    router.push('/login');
-  };
+  // const handleLogout = async () => {
+  //   await logout();
+  //   router.push('/login');
+  // };
   
   return (
     <header className="bg-white shadow-md">

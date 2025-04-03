@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'; // Ensure route is not cached
 export async function GET(request) {
   try {
     // Get token from cookies and/or authorization header
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const tokenFromCookie = cookieStore.get('token')?.value;
     
     const authHeader = request.headers.get('authorization');

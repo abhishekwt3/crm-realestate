@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
+import apiClient from '../../lib/apiClient';
 
-// Create auth context
 const AuthContext = createContext({
   user: null,
   loading: true,
@@ -13,7 +13,6 @@ const AuthContext = createContext({
   checkAuth: async () => {}
 });
 
-// Auth provider component
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -25,40 +24,21 @@ export function AuthProvider({ children }) {
       setLoading(true);
       
       // Get token from localStorage
-      const token = localStorage.getItem('token');
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       
       if (!token) {
-        console.log('No token found in localStorage');
         setUser(null);
         return { success: false, message: 'No token found' };
       }
       
-      // Fetch user data with token in Authorization header
-      const response = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        console.log('Auth check failed with status:', response.status);
-        setUser(null);
-        // Clear invalid token
-        localStorage.removeItem('token');
-        return { success: false, message: 'Invalid token' };
-      }
-      
-      const data = await response.json();
+      // Fetch user data
+      const data = await apiClient.getCurrentUser();
       
       if (data.authenticated && data.user) {
-        console.log('User authenticated:', data.user.email);
         setUser(data.user);
         return { success: true, user: data.user };
       } else {
-        console.log('User not authenticated');
         setUser(null);
-        // Clear invalid token
         localStorage.removeItem('token');
         return { success: false, message: data.message };
       }
@@ -78,11 +58,11 @@ export function AuthProvider({ children }) {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/auth/login', {
+      // Direct API call, not using apiClient to avoid token handling
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include'
+        body: JSON.stringify({ email, password })
       });
       
       const data = await response.json();
@@ -96,7 +76,6 @@ export function AuthProvider({ children }) {
       
       // Store token in localStorage
       if (data.token) {
-        console.log('Setting token in localStorage');
         localStorage.setItem('token', data.token);
       }
       
@@ -121,11 +100,11 @@ export function AuthProvider({ children }) {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/auth/register', {
+      // Direct API call
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
-        credentials: 'include'
+        body: JSON.stringify(userData)
       });
       
       const data = await response.json();
@@ -139,7 +118,6 @@ export function AuthProvider({ children }) {
       
       // Store token in localStorage
       if (data.token) {
-        console.log('Setting token in localStorage after registration');
         localStorage.setItem('token', data.token);
       }
       
@@ -163,17 +141,10 @@ export function AuthProvider({ children }) {
     try {
       setLoading(true);
       
-      // Call logout API
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
-      
       // Clear user data
       setUser(null);
       
       // Remove token from localStorage
-      console.log('Removing token from localStorage');
       localStorage.removeItem('token');
       
       return { success: true };
@@ -194,43 +165,23 @@ export function AuthProvider({ children }) {
   // Check auth on mount
   useEffect(() => {
     checkAuth();
-    
-    // Set up event listener for storage changes (for multi-tab support)
-    const handleStorageChange = (e) => {
-      if (e.key === 'token') {
-        if (!e.newValue) {
-          // Token was removed
-          setUser(null);
-        } else if (e.newValue !== e.oldValue) {
-          // Token changed, refresh auth state
-          checkAuth();
-        }
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // Context value
-  const value = {
-    user,
-    loading,
-    error,
-    login,
-    register,
-    logout,
-    checkAuth
-  };
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      error,
+      login,
+      register,
+      logout,
+      checkAuth
+    }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-// Custom hook for using auth context
 export function useAuth() {
   return useContext(AuthContext);
 }

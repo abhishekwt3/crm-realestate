@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../providers/AuthProvider';
@@ -10,7 +10,15 @@ export default function CreateOrganizationPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
+
+  useEffect(() => {
+    // Check if user already has an organization
+    if (user && user.organisation_id) {
+      // User already has an organization, redirect to dashboard
+      router.push('/dashboard');
+    }
+  }, [user, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,7 +48,15 @@ export default function CreateOrganizationPage() {
         throw new Error(errorData.error || 'Failed to create organization');
       }
 
-      const organization = await response.json();
+      const data = await response.json();
+      
+      // Update the token in localStorage with the new token that has organization info
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        
+        // Refresh auth context with the latest data
+        await checkAuth();
+      }
 
       // Redirect to add team member
       router.push('/onboarding/add-team-member');
@@ -55,6 +71,15 @@ export default function CreateOrganizationPage() {
   // Prevent access if not logged in
   if (!user) {
     return null;
+  }
+
+  // If user already has an organization, redirect (handled by useEffect)
+  if (user && user.organisation_id) {
+    return (
+      <div className="text-center py-8">
+        <p>You already have an organization. Redirecting...</p>
+      </div>
+    );
   }
 
   return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../providers/AuthProvider';
@@ -9,24 +9,59 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login, loading } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { login, user } = useAuth();
   const router = useRouter();
+
+  // If already logged in, redirect to dashboard
+  useEffect(() => {
+    if (user) {
+      console.log("User already logged in, redirecting...");
+      window.location.href = '/dashboard';
+    }
+  }, [user]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setIsSubmitting(true);
     
-    if (!email || !password) {
-      setError('Email and password are required');
-      return;
-    }
-    
-    const result = await login(email, password);
-    
-    if (result.success) {
-      router.push('/dashboard');
-    } else {
-      setError(result.error || 'Login failed');
+    try {
+      if (!email || !password) {
+        setError('Email and password are required');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Direct API call to login
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+      
+      // Save token
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        console.log("Token saved successfully");
+      } else {
+        console.warn("No token received from server");
+      }
+      
+      console.log("Login successful, redirecting...");
+      
+      // Force hard navigation instead of using Next.js router
+      window.location.href = '/dashboard';
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err.message || 'An unexpected error occurred');
+      setIsSubmitting(false);
     }
   };
   
@@ -79,10 +114,10 @@ export default function LoginPage() {
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={isSubmitting}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {isSubmitting ? 'Signing in...' : 'Sign in'}
             </button>
           </div>
         </form>
