@@ -50,21 +50,18 @@ export default function NewContact() {
     }
   }, [user, authLoading, router, searchParams]);
   
-  const getToken = () => {
-    // Get token from localStorage
-    return localStorage.getItem('token');
-  };
-  
   const fetchOrganisations = async () => {
     try {
       setFetchLoading(true);
       
-      const token = getToken();
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
       
       if (!token) {
         throw new Error('Authentication required');
       }
       
+      // Fetch organizations
       const response = await fetch('/api/organizations', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -73,13 +70,15 @@ export default function NewContact() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to fetch organizations');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch organizations');
       }
       
       const data = await response.json();
       setOrganisations(data.organisations || []);
     } catch (err) {
       console.error('Error fetching organizations:', err);
+      setError(err.message);
     } finally {
       setFetchLoading(false);
     }
@@ -96,12 +95,14 @@ export default function NewContact() {
     setError(null);
     
     try {
-      const token = getToken();
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
       
       if (!token) {
         throw new Error('Authentication required');
       }
       
+      // Create contact
       const response = await fetch('/api/contacts', {
         method: 'POST',
         headers: {
@@ -138,7 +139,7 @@ export default function NewContact() {
     }
   };
   
-  // If still checking authentication, show loading
+  // If still checking authentication or loading contacts, show loading spinner
   if (authLoading || fetchLoading) {
     return (
       <div className="flex justify-center items-center min-h-[300px]">

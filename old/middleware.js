@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyToken } from './lib/auth';
+import { verifyToken } from '../lib/auth';
 
 // List of public routes that don't require authentication
 const PUBLIC_ROUTES = [

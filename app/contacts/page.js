@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../providers/AuthProvider';
+import apiClient from '../../lib/apiClient';
 
 export default function Contacts() {
   const { user, loading: authLoading } = useAuth();
@@ -26,54 +27,29 @@ export default function Contacts() {
     }
   }, [user, authLoading, router, filter]);
 
-  const getToken = () => {
-    // Get token from localStorage
-    const token = localStorage.getItem('token');
-    return token;
-  };
-
   const fetchContacts = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      // Get token from localStorage
-      const token = getToken();
-      
-      if (!token) {
-        throw new Error('Authentication required - No token found in localStorage');
-      }
-      
-      // Build URL with filter if provided
-      let url = '/api/contacts';
-      if (filter) {
-        url += `?query=${filter}`;
-      }
-      
-      // Fetch contacts with authorization header
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include' // Also include cookies for good measure
+      // Use apiClient to fetch contacts
+      const queryParams = filter ? { query: filter } : {};
+      const data = await apiClient.request('contacts', {
+        method: 'GET',
+        params: queryParams
       });
       
-      if (!response.ok) {
-        if (response.status === 401) {
-          // If unauthorized, redirect to login
-          router.push('/login');
-          throw new Error('Session expired. Please log in again.');
-        }
-        
-        const data = await response.json();
-        throw new Error(data.error || `Error ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
       setContacts(data.contacts || []);
     } catch (err) {
       console.error('Error fetching contacts:', err);
-      setError(err.message);
+      
+      // Handle specific error scenarios
+      if (err.message.includes('401')) {
+        // Token expired or unauthorized
+        router.push('/login');
+      } else {
+        setError(err.message || 'Failed to fetch contacts');
+      }
     } finally {
       setLoading(false);
     }
@@ -83,7 +59,7 @@ export default function Contacts() {
     setFilter(e.target.value);
   };
   
-  // If still checking authentication, show loading
+  // Render loading state
   if (authLoading) {
     return (
       <div className="flex justify-center items-center min-h-[300px]">
@@ -95,7 +71,7 @@ export default function Contacts() {
     );
   }
   
-  // If not authenticated (and not loading), we'll redirect in useEffect
+  // Redirect if not authenticated
   if (!user) {
     return null;
   }
@@ -107,11 +83,15 @@ export default function Contacts() {
           <h1 className="text-2xl font-bold">Contacts</h1>
           <p className="text-gray-600">Manage your contacts and clients</p>
         </div>
-        <Link href="/contacts/new" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+        <Link 
+          href="/contacts/new" 
+          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+        >
           Add Contact
         </Link>
       </div>
       
+      {/* Search and Filter Section */}
       <div className="bg-white p-4 rounded-lg shadow mb-6">
         <div className="flex items-center">
           <div className="relative flex-grow max-w-sm">
@@ -138,41 +118,15 @@ export default function Contacts() {
         </div>
       </div>
       
-      {/* Login reminder if token missing */}
-      {error && error.includes('No token found') && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-400 p-4 mb-6">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-yellow-700">
-                Session may have expired. Please log in again.
-              </p>
-              <div className="mt-2">
-                <button
-                  onClick={() => router.push('/login')}
-                  className="text-sm text-yellow-700 underline hover:text-yellow-600"
-                >
-                  Go to Login
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Loading state */}
+      {/* Loading State */}
       {loading && (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500"></div>
         </div>
       )}
       
-      {/* Error state (non-auth errors) */}
-      {error && !loading && !error.includes('No token found') && (
+      {/* Error State */}
+      {error && !loading && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6">
           <div className="flex">
             <div className="flex-shrink-0">
@@ -195,7 +149,7 @@ export default function Contacts() {
         </div>
       )}
       
-      {/* Empty state */}
+      {/* Empty State */}
       {!loading && !error && contacts.length === 0 && (
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <h3 className="text-lg font-medium text-gray-900 mb-2">No contacts found</h3>
@@ -209,46 +163,44 @@ export default function Contacts() {
         </div>
       )}
       
-      {/* Contacts grid/table */}
+      {/* Contacts List */}
       {!loading && !error && contacts.length > 0 && (
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <ul className="divide-y divide-gray-200">
             {contacts.map((contact) => (
-              <li key={contact.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                        <span className="text-indigo-700">👤</span>
+              <li key={contact.id} className="hover:bg-gray-50">
+                <div className="px-4 py-4 sm:px-6 flex justify-between items-center">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                      <span className="text-indigo-700">👤</span>
+                    </div>
+                    <div className="ml-4">
+                      <div className="text-sm font-medium text-indigo-600">
+                        {contact.name}
                       </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-indigo-600">
-                          {contact.name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {contact.email || 'No email provided'}
-                        </div>
+                      <div className="text-sm text-gray-500">
+                        {contact.email || 'No email provided'}
                       </div>
                     </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-4">
                     {contact.phone && (
-                      <div className="hidden md:block">
-                        <span className="text-sm text-gray-600">
-                          {contact.phone}
-                        </span>
+                      <div className="text-sm text-gray-600 hidden md:block">
+                        {contact.phone}
                       </div>
                     )}
-                  </div>
-                  <div className="mt-2 sm:flex sm:justify-between">
-                    <div className="sm:flex">
-                      <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                        <span>Organization: {contact.organisation?.organisation_name || 'None'}</span>
-                      </div>
-                    </div>
-                    <div className="mt-2 flex items-center text-sm sm:mt-0 space-x-4">
-                      <Link href={`/contacts/${contact.id}`} className="text-indigo-600 hover:text-indigo-900">
+                    <div className="flex space-x-2">
+                      <Link 
+                        href={`/contacts/${contact.id}`} 
+                        className="text-indigo-600 hover:text-indigo-900"
+                      >
                         View
                       </Link>
-                      <Link href={`/contacts/${contact.id}/edit`} className="text-indigo-600 hover:text-indigo-900">
+                      <Link 
+                        href={`/contacts/${contact.id}/edit`} 
+                        className="text-indigo-600 hover:text-indigo-900"
+                      >
                         Edit
                       </Link>
                     </div>

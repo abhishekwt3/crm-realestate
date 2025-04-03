@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../providers/AuthProvider';
-import apiClient from '../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();

@@ -9,8 +9,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, user } = useAuth();
+  const { user, login, loading } = useAuth(); // Added user here
   const router = useRouter();
 
   // If already logged in, redirect to dashboard
@@ -24,44 +23,27 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setIsSubmitting(true);
     
     try {
       if (!email || !password) {
         setError('Email and password are required');
-        setIsSubmitting(false);
         return;
       }
       
-      // Direct API call to login
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
+      const result = await login(email, password);
       
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-      
-      // Save token
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        console.log("Token saved successfully");
+      if (result.success) {
+        if (result.setupRequired) {
+          router.push(`/onboarding/${result.nextStep}`);
+        } else {
+          router.push('/dashboard');
+        }
       } else {
-        console.warn("No token received from server");
+        setError(result.error);
       }
-      
-      console.log("Login successful, redirecting...");
-      
-      // Force hard navigation instead of using Next.js router
-      window.location.href = '/dashboard';
     } catch (err) {
       console.error('Login error:', err);
-      setError(err.message || 'An unexpected error occurred');
-      setIsSubmitting(false);
+      setError('An unexpected error occurred');
     }
   };
   
@@ -114,10 +96,10 @@ export default function LoginPage() {
           <div>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={loading}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
-              {isSubmitting ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </div>
         </form>

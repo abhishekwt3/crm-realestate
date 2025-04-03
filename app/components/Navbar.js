@@ -1,83 +1,103 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '../providers/AuthProvider';
+import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
-  const [user, setUser] = useState(null);
+  const { user, logout } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    // Get user from localStorage if available
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
-      
-      // Clear local storage
-      localStorage.removeItem('user');
-      
-      // Redirect to login
-      router.push('/login');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
+    await logout();
+    router.push('/login');
   };
 
   return (
-    <nav className="bg-indigo-600 text-white shadow-lg">
+    <nav className="bg-white shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+        <div className="flex justify-between h-16 items-center">
           <div className="flex items-center">
-            <Link href="/dashboard" className="font-bold text-xl">
+            <Link href="/dashboard" className="text-xl font-bold text-indigo-600">
               CRM Dashboard
             </Link>
-            
-            <div className="hidden md:block ml-10">
-              <Link href="/dashboard" className="ml-4 px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500">
-                Dashboard
-              </Link>
-              <Link href="/properties" className="ml-4 px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500">
-                Properties
-              </Link>
-              <Link href="/contacts" className="ml-4 px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500">
-                Contacts
-              </Link>
-            </div>
           </div>
-          
-          <div className="flex items-center">
+
+          <div className="hidden md:flex items-center space-x-4">
             {user ? (
-              <div className="flex items-center">
-                <span className="mr-4">Hello, {user.full_name || user.user_name}</span>
+              <>
+                <span className="text-gray-700">{user.email}</span>
                 <button
                   onClick={handleLogout}
-                  className="px-3 py-1 bg-white text-indigo-600 rounded-md text-sm font-medium hover:bg-gray-100"
+                  className="px-3 py-2 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200"
                 >
                   Logout
                 </button>
-              </div>
+              </>
             ) : (
-              <div>
-                <Link href="/login" className="ml-4 px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500">
+              <div className="flex space-x-2">
+                <Link 
+                  href="/login" 
+                  className="px-3 py-2 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200"
+                >
                   Login
                 </Link>
-                <Link href="/register" className="ml-4 px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500">
+                <Link 
+                  href="/register" 
+                  className="px-3 py-2 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200"
+                >
                   Register
                 </Link>
               </div>
             )}
           </div>
+
+          {/* Mobile menu button */}
+          <div className="md:hidden">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="text-gray-600 hover:text-gray-800"
+            >
+              {isMenuOpen ? '✕' : '☰'}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile menu */}
+        {isMenuOpen && (
+          <div className="md:hidden">
+            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+              {user ? (
+                <>
+                  <div className="text-gray-700 px-3 py-2">{user.email}</div>
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left px-3 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link 
+                    href="/login" 
+                    className="block px-3 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Login
+                  </Link>
+                  <Link 
+                    href="/register" 
+                    className="block px-3 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Register
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   );
