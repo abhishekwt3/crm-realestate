@@ -1,107 +1,54 @@
-import { loginUser } from '../../../../lib/auth';
+import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { authenticateUser } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
   try {
-    console.log('Login API endpoint hit');
+    const { email, password } = await request.json();
     
-    let email, password;
-    
-    // Check content type to determine how to parse the request
-    const contentType = request.headers.get('content-type') || '';
-    
-    if (contentType.includes('application/json')) {
-      // Parse JSON request body
-      const data = await request.json();
-      email = data.email;
-      password = data.password;
-      console.log('Received JSON login request for:', email);
-    } else if (contentType.includes('application/x-www-form-urlencoded')) {
-      // Parse form data
-      const formData = await request.formData();
-      email = formData.get('email');
-      password = formData.get('password');
-      console.log('Received form login request for:', email);
-    } else {
-      return new Response(
-        JSON.stringify({ error: 'Unsupported content type' }),
-        { 
-          status: 415,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-    }
-    
-    // Validate required fields
+    // Validate input
     if (!email || !password) {
-      return new Response(
-        JSON.stringify({ error: 'Email and password are required' }),
-        { 
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        }
+      return NextResponse.json(
+        { error: 'Email and password are required' },
+        { status: 400 }
       );
     }
-    
-    console.log(`Attempting to authenticate user: ${email}`);
     
     // Authenticate user
-    const result = await loginUser(email, password);
+    const result = await authenticateUser(email, password);
     
-    console.log('Authentication result:', result.success ? 'Success' : 'Failed');
-    
-    if (result.success && result.user && result.token) {
-      // Don't send the password back
-      const { password: _, ...userWithoutPassword } = result.user;
-      
-      // Calculate expiry date for cookie
-      const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + 7); // 7 days
-      
-      // Create response with token
-      const response = new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Login successful',
-          user: userWithoutPassword,
-          token: result.token,
-          tokenLength: result.token.length,
-          redirectTo: '/dashboard'
-        }),
-        { 
-          status: 200,
-          headers: { 
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store'
-          }
-        }
-      );
-      
-      // Set the cookie in the response
-      response.headers.append('Set-Cookie', 
-        `token=${result.token}; Path=/; Expires=${expiryDate.toUTCString()}; HttpOnly; SameSite=Lax`
-      );
-      
-      console.log('Login successful, cookie set, returning response');
-      return response;
-    } else {
-      return new Response(
-        JSON.stringify({ error: result.error || 'Invalid credentials' }),
-        { 
-          status: 401,
-          headers: { 'Content-Type': 'application/json' }
-        }
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 401 }
       );
     }
-  } catch (error) {
-    console.error('Login API error:', error);
     
-    return new Response(
-      JSON.stringify({ error: 'Authentication failed: ' + error.message }),
-      { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
+    // Set token in cookie
+    const cookieStore = cookies();
+    cookieStore.set('token', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/',
+      sameSite: 'lax'
+    });
+    
+    // Return success response with user info and token
+    return NextResponse.json({
+      success: true,
+      message: 'Login successful',
+      user: result.user,
+      token: result.token
+    });
+    
+  } catch (error) {
+    console.error('Login error:', error);
+    return NextResponse.json(
+      { error: 'An error occurred during login' },
+      { status: 500 }
     );
   }
 }

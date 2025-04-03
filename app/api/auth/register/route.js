@@ -1,94 +1,54 @@
-import { registerUser } from '../../../../lib/auth';
-import prisma from '../../../../lib/prisma';
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { registerUser } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
   try {
-    const data = await request.json();
+    const userData = await request.json();
     
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(data.email)) {
-      return new Response(
-        JSON.stringify({ error: 'Please enter a valid email address' }),
-        { 
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        }
+    // Validate required fields
+    if (!userData.email || !userData.password) {
+      return NextResponse.json(
+        { error: 'Email and password are required' },
+        { status: 400 }
       );
     }
     
-    // Check if email already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: data.email }
+    // Register user with hashed password
+    const result = await registerUser(userData);
+    
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 400 }
+      );
+    }
+    
+    // Set token in cookie
+    const cookieStore = cookies();
+    cookieStore.set('token', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/',
+      sameSite: 'lax'
     });
     
-    if (existingUser) {
-      return new Response(
-        JSON.stringify({ error: 'Email is already in use' }),
-        { 
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-    }
+    // Return success response with user info
+    return NextResponse.json({
+      success: true,
+      message: 'Registration successful',
+      user: result.user,
+      token: result.token
+    });
     
-    // Validate password
-    if (!data.password || data.password.length < 8) {
-      return new Response(
-        JSON.stringify({ error: 'Password must be at least 8 characters long' }),
-        { 
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-    }
-    
-    // Check if organization exists
-    if (data.organisation_id) {
-      const organization = await prisma.organisation.findUnique({
-        where: { id: data.organisation_id }
-      });
-      
-      if (!organization) {
-        return new Response(
-          JSON.stringify({ error: 'Organization not found' }),
-          { 
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
-          }
-        );
-      }
-    }
-    
-    // Register user
-    const { user, token } = await registerUser(data);
-    
-    // Don't send the password back
-    const { password, ...userWithoutPassword } = user;
-    
-    return new Response(
-      JSON.stringify({ user: userWithoutPassword, token }),
-      { 
-        status: 201,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
   } catch (error) {
     console.error('Registration error:', error);
-    
-    // Provide more detailed error message if possible
-    let errorMessage = 'Registration failed';
-    
-    if (error.message.includes('Unique constraint failed')) {
-      errorMessage = 'This email is already registered';
-    }
-    
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { 
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      }
+    return NextResponse.json(
+      { error: 'An error occurred during registration' },
+      { status: 500 }
     );
   }
 }

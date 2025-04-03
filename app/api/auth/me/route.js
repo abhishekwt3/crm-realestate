@@ -1,82 +1,97 @@
-import { verifyToken } from '../../../../lib/auth';
-import prisma from '../../../../lib/prisma';
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma'; // Use a singleton instance
+import { verifyToken } from '@/lib/auth';
+import { cookies } from 'next/headers';
+
+export const dynamic = 'force-dynamic'; // Ensure route is not cached
 
 export async function GET(request) {
   try {
-    // Get token from authorization header
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader && authHeader.split(' ')[1];
+    // Get token from cookies and/or authorization header
+    const cookieStore = cookies();
+    const tokenFromCookie = cookieStore.get('token')?.value;
     
+    const authHeader = request.headers.get('authorization');
+    const tokenFromHeader = authHeader && authHeader.startsWith('Bearer ') 
+      ? authHeader.substring(7) 
+      : null;
+    
+    const token = tokenFromCookie || tokenFromHeader;
+    
+    // No token found
     if (!token) {
-      return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        { 
-          status: 401,
-          headers: { 'Content-Type': 'application/json' }
-        }
+      return NextResponse.json(
+        { authenticated: false, message: 'No token provided' },
+        { status: 401 }
       );
     }
     
-    // Verify token - note this is now async
-    const decoded = await verifyToken(token);
+    // Verify token
+    const decoded = verifyToken(token);
     
     if (!decoded || !decoded.id) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid token' }),
-        { 
-          status: 401,
-          headers: { 'Content-Type': 'application/json' }
-        }
+      return NextResponse.json(
+        { authenticated: false, message: 'Invalid token' },
+        { status: 401 }
       );
     }
     
-    // Get user data
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        organisation_id: true,
-        organisation: {
-          select: {
-            organisation_name: true
-          }
-        },
-        teamMember: {
-          select: {
-            id: true,
-            team_member_name: true
-          }
-        }
-      }
-    });
+    // Get user data with a timeout
+    const userId = decoded.id;
     
-    if (!user) {
-      return new Response(
-        JSON.stringify({ error: 'User not found' }),
-        { 
-          status: 404,
-          headers: { 'Content-Type': 'application/json' }
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          organisation_id: true,
+          organisation: {
+            select: {
+              organisation_name: true
+            }
+          },
+          teamMember: {
+            select: {
+              id: true,
+              team_member_name: true
+            }
+          }
         }
+      });
+      
+      if (!user) {
+        return NextResponse.json(
+          { authenticated: false, message: 'User not found' },
+          { status: 404 }
+        );
+      }
+      
+      // Return user data
+      return NextResponse.json({
+        authenticated: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          organisation_id: user.organisation_id,
+          organisation_name: user.organisation?.organisation_name,
+          team_member: user.teamMember
+        }
+      });
+    } catch (dbError) {
+      console.error('Database error:', dbError);
+      return NextResponse.json(
+        { error: 'Database error', message: dbError.message },
+        { status: 500 }
       );
     }
-    
-    return new Response(
-      JSON.stringify({ user }),
-      { 
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
   } catch (error) {
-    console.error('Error in /api/auth/me:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
+    console.error('Error in auth/me route:', error);
+    return NextResponse.json(
+      { error: 'Server error', message: error.message },
+      { status: 500 }
     );
   }
 }

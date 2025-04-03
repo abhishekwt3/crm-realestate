@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../providers/AuthProvider';
 
-export default function Properties() {
+export default function Contacts() {
   const { user, loading: authLoading } = useAuth();
-  const [properties, setProperties] = useState([]);
+  const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('');
@@ -20,19 +20,19 @@ export default function Properties() {
       return;
     }
 
-    // Fetch properties if authenticated
+    // Fetch contacts if authenticated
     if (user) {
-      fetchProperties();
+      fetchContacts();
     }
   }, [user, authLoading, router, filter]);
 
   const getToken = () => {
-    // First try to get token from localStorage
+    // Get token from localStorage
     const token = localStorage.getItem('token');
     return token;
   };
 
-  const fetchProperties = async () => {
+  const fetchContacts = async () => {
     try {
       setLoading(true);
       
@@ -44,12 +44,12 @@ export default function Properties() {
       }
       
       // Build URL with filter if provided
-      let url = '/api/properties';
+      let url = '/api/contacts';
       if (filter) {
-        url += `?status=${filter}`;
+        url += `?query=${filter}`;
       }
       
-      // Fetch properties with authorization header
+      // Fetch contacts with authorization header
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -70,9 +70,9 @@ export default function Properties() {
       }
       
       const data = await response.json();
-      setProperties(data.properties || []);
+      setContacts(data.contacts || []);
     } catch (err) {
-      console.error('Error fetching properties:', err);
+      console.error('Error fetching contacts:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -104,35 +104,34 @@ export default function Properties() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Properties</h1>
-          <p className="text-gray-600">Manage your property portfolio</p>
+          <h1 className="text-2xl font-bold">Contacts</h1>
+          <p className="text-gray-600">Manage your contacts and clients</p>
         </div>
-        <Link href="/properties/new" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-          Add Property
+        <Link href="/contacts/new" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+          Add Contact
         </Link>
       </div>
       
       <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="flex items-center space-x-4">
-          <label htmlFor="statusFilter" className="font-medium text-gray-700">
-            Filter by Status:
-          </label>
-          <select
-            id="statusFilter"
-            value={filter}
-            onChange={handleFilterChange}
-            className="form-select rounded-md border-gray-300 shadow-sm mt-1 block"
-          >
-            <option value="">All Properties</option>
-            <option value="Available">Available</option>
-            <option value="Under Contract">Under Contract</option>
-            <option value="Sold">Sold</option>
-            <option value="Listed">Listed</option>
-          </select>
+        <div className="flex items-center">
+          <div className="relative flex-grow max-w-sm">
+            <input
+              type="text"
+              placeholder="Search contacts..."
+              value={filter}
+              onChange={handleFilterChange}
+              className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+            />
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"></path>
+              </svg>
+            </div>
+          </div>
           
           <button 
-            onClick={fetchProperties}
-            className="ml-auto px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+            onClick={fetchContacts}
+            className="ml-4 px-3 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
           >
             <span>↻</span> Refresh
           </button>
@@ -187,7 +186,7 @@ export default function Properties() {
           </div>
           <div className="mt-2">
             <button 
-              onClick={fetchProperties}
+              onClick={fetchContacts}
               className="text-sm text-red-700 hover:text-red-900 underline"
             >
               Try Again
@@ -197,61 +196,59 @@ export default function Properties() {
       )}
       
       {/* Empty state */}
-      {!loading && !error && properties.length === 0 && (
+      {!loading && !error && contacts.length === 0 && (
         <div className="bg-white rounded-lg shadow p-8 text-center">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No properties found</h3>
-          <p className="text-gray-500 mb-6">Get started by adding your first property.</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No contacts found</h3>
+          <p className="text-gray-500 mb-6">Get started by adding your first contact.</p>
           <Link
-            href="/properties/new"
+            href="/contacts/new"
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
           >
-            Add Property
+            Add Contact
           </Link>
         </div>
       )}
       
-      {/* Properties list */}
-      {!loading && !error && properties.length > 0 && (
+      {/* Contacts grid/table */}
+      {!loading && !error && contacts.length > 0 && (
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <ul className="divide-y divide-gray-200">
-            {properties.map((property) => (
-              <li key={property.id}>
+            {contacts.map((contact) => (
+              <li key={contact.id}>
                 <div className="px-4 py-4 sm:px-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                        <span className="text-indigo-700">🏠</span>
+                        <span className="text-indigo-700">👤</span>
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-indigo-600">
-                          {property.name}
+                          {contact.name}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {property.address || 'No address provided'}
+                          {contact.email || 'No email provided'}
                         </div>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${property.status === 'Available' ? 'bg-green-100 text-green-800' : 
-                          property.status === 'Under Contract' ? 'bg-yellow-100 text-yellow-800' : 
-                            property.status === 'Sold' ? 'bg-gray-100 text-gray-800' : 
-                              'bg-blue-100 text-blue-800'}`}>
-                        {property.status || 'Available'}
-                      </span>
-                    </div>
+                    {contact.phone && (
+                      <div className="hidden md:block">
+                        <span className="text-sm text-gray-600">
+                          {contact.phone}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="mt-2 sm:flex sm:justify-between">
                     <div className="sm:flex">
                       <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                        <span>Owner: {property.owner?.name || 'No owner'}</span>
+                        <span>Organization: {contact.organisation?.organisation_name || 'None'}</span>
                       </div>
                     </div>
                     <div className="mt-2 flex items-center text-sm sm:mt-0 space-x-4">
-                      <Link href={`/properties/${property.id}`} className="text-indigo-600 hover:text-indigo-900">
+                      <Link href={`/contacts/${contact.id}`} className="text-indigo-600 hover:text-indigo-900">
                         View
                       </Link>
-                      <Link href={`/properties/${property.id}/edit`} className="text-indigo-600 hover:text-indigo-900">
+                      <Link href={`/contacts/${contact.id}/edit`} className="text-indigo-600 hover:text-indigo-900">
                         Edit
                       </Link>
                     </div>

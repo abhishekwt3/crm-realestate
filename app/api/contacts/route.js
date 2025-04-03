@@ -19,7 +19,7 @@ function getTokenFromRequest(request) {
   return tokenCookie?.value;
 }
 
-// GET all properties
+// GET all contacts
 export async function GET(request) {
   try {
     // Get token from request
@@ -48,50 +48,57 @@ export async function GET(request) {
       );
     }
     
-    // Get URL parameters
+    // Get URL parameters for filtering
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
+    const query = searchParams.get('query');
     
-    // Build query filter based on user role and optional filters
+    // Build query filter
     let where = {};
     
-    // Regular users can only see properties from their organization
+    // Regular users can only see contacts from their organization
     if (decoded.role !== 'superadmin') {
       where.organisation_id = decoded.organisation_id;
     }
     
-    // Add status filter if provided
-    if (status) {
-      where.status = status;
+    // Add search filter if provided
+    if (query) {
+      where.OR = [
+        { name: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } },
+        { phone: { contains: query, mode: 'insensitive' } }
+      ];
     }
     
-    // Fetch properties
-    const properties = await prisma.property.findMany({
+    // Fetch contacts
+    const contacts = await prisma.contact.findMany({
       where,
       include: {
-        owner: true,
         organisation: {
           select: {
             organisation_name: true
           }
         },
-        _count: {
+        properties: {
           select: {
-            deals: true
+            id: true,
+            name: true
           }
         }
+      },
+      orderBy: {
+        name: 'asc'
       }
     });
     
     return new Response(
-      JSON.stringify({ properties }),
+      JSON.stringify({ contacts }),
       { 
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       }
     );
   } catch (error) {
-    console.error('Error in GET /api/properties:', error);
+    console.error('Error in GET /api/contacts:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: error.message }),
       { 
@@ -102,7 +109,7 @@ export async function GET(request) {
   }
 }
 
-// POST create new property
+// POST create new contact
 export async function POST(request) {
   try {
     // Get token from request
@@ -136,7 +143,7 @@ export async function POST(request) {
     // Validate input
     if (!data.name) {
       return new Response(
-        JSON.stringify({ error: 'Property name is required' }),
+        JSON.stringify({ error: 'Contact name is required' }),
         { 
           status: 400,
           headers: { 'Content-Type': 'application/json' }
@@ -149,26 +156,25 @@ export async function POST(request) {
       data.organisation_id = decoded.organisation_id;
     }
     
-    // Create new property
-    const property = await prisma.property.create({
+    // Create new contact
+    const contact = await prisma.contact.create({
       data: {
         name: data.name,
-        address: data.address,
-        owner_id: data.owner_id ? parseInt(data.owner_id, 10) : null,
-        organisation_id: data.organisation_id,
-        status: data.status || 'Available'
+        email: data.email,
+        phone: data.phone,
+        organisation_id: data.organisation_id
       }
     });
     
     return new Response(
-      JSON.stringify(property),
+      JSON.stringify(contact),
       { 
         status: 201,
         headers: { 'Content-Type': 'application/json' }
       }
     );
   } catch (error) {
-    console.error('Error in POST /api/properties:', error);
+    console.error('Error in POST /api/contacts:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: error.message }),
       { 
