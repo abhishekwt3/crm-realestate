@@ -10,30 +10,11 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'user',
-    organisation_id: ''
+    role: 'admin'
   });
-  const [organisations, setOrganisations] = useState([]);
   const [error, setError] = useState('');
   const { register, loading } = useAuth();
   const router = useRouter();
-
-  // Fetch organisations
-  useEffect(() => {
-    const fetchOrganisations = async () => {
-      try {
-        const response = await fetch('/api/organizations');
-        if (response.ok) {
-          const data = await response.json();
-          setOrganisations(data.organisations || []);
-        }
-      } catch (err) {
-        console.error('Error fetching organisations:', err);
-      }
-    };
-    
-    fetchOrganisations();
-  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -59,12 +40,12 @@ export default function RegisterPage() {
     const result = await register({
       email: formData.email,
       password: formData.password,
-      role: formData.role,
-      organisation_id: formData.organisation_id || undefined
+      role: formData.role
     });
     
     if (result.success) {
-      router.push('/dashboard');
+      // If setup is required, redirect to organization creation
+      router.push('/onboarding/create-organization');
     } else {
       setError(result.error || 'Registration failed');
     }
@@ -133,44 +114,6 @@ export default function RegisterPage() {
           </div>
           
           <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-              Role
-            </label>
-            <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            >
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-          
-          {organisations.length > 0 && (
-            <div>
-              <label htmlFor="organisation_id" className="block text-sm font-medium text-gray-700 mb-1">
-                Organisation
-              </label>
-              <select
-                id="organisation_id"
-                name="organisation_id"
-                value={formData.organisation_id}
-                onChange={handleChange}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-              >
-                <option value="">Select an organisation (optional)</option>
-                {organisations.map(org => (
-                  <option key={org.id} value={org.id}>
-                    {org.organisation_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          
-          <div className="pt-2">
             <button
               type="submit"
               disabled={loading}

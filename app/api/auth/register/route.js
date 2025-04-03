@@ -36,12 +36,14 @@ export async function POST(request) {
       sameSite: 'lax'
     });
     
-    // Return success response with user info
+    // Indicate that the user needs to set up their organization
     return NextResponse.json({
       success: true,
       message: 'Registration successful',
       user: result.user,
-      token: result.token
+      token: result.token,
+      setupRequired: true,
+      nextStep: 'create-organization'
     });
     
   } catch (error) {

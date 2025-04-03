@@ -100,7 +100,12 @@ export function AuthProvider({ children }) {
         localStorage.setItem('token', data.token);
       }
       
-      return { success: true, user: data.user };
+      return { 
+        success: true, 
+        user: data.user,
+        setupRequired: data.setupRequired,
+        nextStep: data.nextStep 
+      };
     } catch (err) {
       console.error('Login error:', err);
       setError(err.message);
@@ -138,7 +143,12 @@ export function AuthProvider({ children }) {
         localStorage.setItem('token', data.token);
       }
       
-      return { success: true, user: data.user };
+      return { 
+        success: true, 
+        user: data.user,
+        setupRequired: data.setupRequired,
+        nextStep: data.nextStep
+      };
     } catch (err) {
       console.error('Registration error:', err);
       setError(err.message);
