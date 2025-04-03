@@ -25,7 +25,7 @@ export default function PropertyDetails({ params }) {
         }
         
         // Fetch property details
-        const propertyResponse = await fetch(`/api/properties/${propertyId}`, {
+        const propertyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/properties/${propertyId}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }

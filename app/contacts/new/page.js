@@ -10,16 +10,13 @@ export default function NewContact() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
-    organisation_id: ''
+    phone: ''
   });
-  const [organisations, setOrganisations] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   useEffect(() => {
     // Redirect to login if not authenticated
     if (!authLoading && !user) {
@@ -27,14 +24,6 @@ export default function NewContact() {
       return;
     }
 
-    // Set organization from user if available
-    if (user && user.organisation_id && !formData.organisation_id) {
-      setFormData(prev => ({
-        ...prev,
-        organisation_id: user.organisation_id
-      }));
-    }
-    
     // Check for redirectTo in query params
     const redirectTo = searchParams.get('redirectTo');
     if (redirectTo) {
@@ -43,46 +32,7 @@ export default function NewContact() {
         redirectTo
       }));
     }
-    
-    // Fetch organizations if user is authenticated
-    if (user) {
-      fetchOrganisations();
-    }
   }, [user, authLoading, router, searchParams]);
-  
-  const fetchOrganisations = async () => {
-    try {
-      setFetchLoading(true);
-      
-      // Get token from localStorage
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-      
-      // Fetch organizations
-      const response = await fetch('/api/organizations', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch organizations');
-      }
-      
-      const data = await response.json();
-      setOrganisations(data.organisations || []);
-    } catch (err) {
-      console.error('Error fetching organizations:', err);
-      setError(err.message);
-    } finally {
-      setFetchLoading(false);
-    }
-  };
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -94,34 +44,49 @@ export default function NewContact() {
     setLoading(true);
     setError(null);
     
+    // Ensure user is authenticated and has an organization
+    if (!user || !user.organisation_id) {
+      setError('You must be part of an organization to create a contact');
+      setLoading(false);
+      return;
+    }
+    
     try {
-      // Get token from localStorage
+      // Get token from localStorage with additional checks
       const token = localStorage.getItem('token');
       
       if (!token) {
-        throw new Error('Authentication required');
+        console.error('No token found in localStorage');
+        setError('Authentication failed. Please log in again.');
+        router.push('/login');
+        return;
       }
-      
-      // Create contact
-      const response = await fetch('/api/contacts', {
+
+      // Prepare contact data with organization ID
+      const contactData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        organisation_id: user.organisation_id
+      };
+
+      // Fetch with explicit token handling
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/contacts`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          organisation_id: formData.organisation_id || undefined
-        })
+        body: JSON.stringify(contactData)
       });
-      
+
+      // Check response
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to create contact');
+        // Try to parse error message
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create contact');
       }
-      
+
       const newContact = await response.json();
       
       // Check if there's a redirect parameter
@@ -132,15 +97,15 @@ export default function NewContact() {
         router.push('/contacts');
       }
     } catch (err) {
-      setError(err.message);
       console.error('Error creating contact:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
   
-  // If still checking authentication or loading contacts, show loading spinner
-  if (authLoading || fetchLoading) {
+  // If still checking authentication, show loading spinner
+  if (authLoading) {
     return (
       <div className="flex justify-center items-center min-h-[300px]">
         <div className="text-center">
@@ -160,7 +125,7 @@ export default function NewContact() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">New Contact</h1>
-        <p className="text-gray-600">Add a new contact to your system</p>
+        <p className="text-gray-600">Add a new contact to your organization</p>
       </div>
       
       <div className="bg-white rounded-lg shadow-md p-6">
@@ -169,6 +134,12 @@ export default function NewContact() {
             {error}
           </div>
         )}
+        
+        <div className="mb-4">
+          <p className="text-sm text-gray-600">
+            Organization: {user.organisation_name || 'No organization'}
+          </p>
+        </div>
         
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
@@ -216,28 +187,6 @@ export default function NewContact() {
               placeholder="Enter phone number"
             />
           </div>
-          
-          {organisations.length > 0 && (
-            <div className="mb-4">
-              <label htmlFor="organisation_id" className="block text-sm font-medium text-gray-700 mb-1">
-                Organization
-              </label>
-              <select
-                id="organisation_id"
-                name="organisation_id"
-                value={formData.organisation_id}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="">Select an organization (optional)</option>
-                {organisations.map(org => (
-                  <option key={org.id} value={org.id}>
-                    {org.organisation_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
           
           <div className="flex justify-end space-x-4 mt-6">
             <Link 

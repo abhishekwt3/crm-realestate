@@ -59,7 +59,7 @@ export default function NewProperty() {
       }
       
       // Fetch contacts with authorization header
-      const response = await fetch('/api/contacts', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/contacts`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -110,7 +110,7 @@ export default function NewProperty() {
       }
       
       // Create property with authorization header
-      const response = await fetch('/api/properties', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/properties`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

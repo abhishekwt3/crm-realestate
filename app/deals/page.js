@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '../providers/AuthProvider';
 
 export default function Deals() {
+  const { user, loading: authLoading } = useAuth();
   const [deals, setDeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -16,29 +18,30 @@ export default function Deals() {
   useEffect(() => {
     const fetchTeamMembers = async () => {
       try {
-        const token = document.cookie
-          .split('; ')
-          .find(row => row.startsWith('token='))
-          ?.split('=')[1];
+        // Get token from localStorage
+        const token = localStorage.getItem('token');
         
         if (!token) {
           throw new Error('Authentication required');
         }
         
-        const response = await fetch('/api/team', {
+        // Fetch team members using full API URL
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/team`, {
           headers: {
-            Authorization: `Bearer ${token}`
+            'Authorization': `Bearer ${token}`
           }
         });
         
         if (!response.ok) {
-          throw new Error('Failed to fetch team members');
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch team members');
         }
         
         const data = await response.json();
         setTeamMembers(data.teamMembers || []);
       } catch (err) {
         console.error('Error fetching team members:', err);
+        setError(err.message);
       }
     };
     
@@ -48,17 +51,15 @@ export default function Deals() {
   useEffect(() => {
     const fetchDeals = async () => {
       try {
-        const token = document.cookie
-          .split('; ')
-          .find(row => row.startsWith('token='))
-          ?.split('=')[1];
+        // Get token from localStorage
+        const token = localStorage.getItem('token');
         
         if (!token) {
           throw new Error('Authentication required');
         }
         
         // Build URL with filters
-        let url = '/api/deals';
+        let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/deals`;
         const params = new URLSearchParams();
         
         if (filters.status) {
@@ -75,7 +76,7 @@ export default function Deals() {
         
         const response = await fetch(url, {
           headers: {
-            Authorization: `Bearer ${token}`
+            'Authorization': `Bearer ${token}`
           }
         });
         
@@ -114,6 +115,9 @@ export default function Deals() {
     }).format(value);
   };
   
+  // Rest of the component remains the same
+  // ... (previous implementation continues)
+
   if (loading) {
     return <div className="p-4">Loading deals...</div>;
   }
