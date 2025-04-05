@@ -1,3 +1,4 @@
+// app/components/Sidebar.js
 'use client';
 
 import Link from 'next/link';
@@ -28,6 +29,11 @@ const sidebarItems = [
     name: 'Deals', 
     href: '/deals', 
     icon: '💼' 
+  },
+  { 
+    name: 'Team Members', 
+    href: '/team', 
+    icon: '👥' 
   },
 ];
 
