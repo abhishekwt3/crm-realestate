@@ -26,7 +26,7 @@ export default function DealDetail({ params }) {
   // Form states
   const [discussionForm, setDiscussionForm] = useState({ comments: '' });
   const [taskForm, setTaskForm] = useState({ 
-    title: '', 
+    title: '',
     description: '', 
     due_date: '', 
     status: 'Pending',
