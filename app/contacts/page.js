@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../providers/AuthProvider';
-import apiClient from '../../lib/apiClient';
 
 export default function Contacts() {
   const { user, loading: authLoading } = useAuth();
@@ -21,24 +20,52 @@ export default function Contacts() {
       return;
     }
 
-    // Fetch contacts if authenticated
-    if (user) {
+    // Fetch contacts if authenticated and user has an organization
+    if (user && user.organisation_id) {
       fetchContacts();
     }
   }, [user, authLoading, router, filter]);
-
+  
   const fetchContacts = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Use apiClient to fetch contacts
-      const queryParams = filter ? { query: filter } : {};
-      const data = await apiClient.request('contacts', {
-        method: 'GET',
-        params: queryParams
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      // Prepare URL with organization ID and optional search filter
+      let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/contacts`;
+      const params = new URLSearchParams();
+      
+      // Add organization ID filter
+      params.append('organisation_id', user.organisation_id);
+      
+      // Add search query if exists
+      if (filter) {
+        params.append('query', filter);
+      }
+      
+      url += `?${params.toString()}`;
+      
+      // Fetch contacts
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
       
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch contacts');
+      }
+      
+      const data = await response.json();
       setContacts(data.contacts || []);
     } catch (err) {
       console.error('Error fetching contacts:', err);
@@ -71,8 +98,8 @@ export default function Contacts() {
     );
   }
   
-  // Redirect if not authenticated
-  if (!user) {
+  // Redirect if not authenticated or no organization
+  if (!user || !user.organisation_id) {
     return null;
   }
 
@@ -81,7 +108,7 @@ export default function Contacts() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">Contacts</h1>
-          <p className="text-gray-600">Manage your contacts and clients</p>
+          <p className="text-gray-600">Manage your contacts for {user.organisation_name}</p>
         </div>
         <Link 
           href="/contacts/new" 

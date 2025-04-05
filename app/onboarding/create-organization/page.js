@@ -32,7 +32,7 @@ export default function CreateOrganizationPage() {
         throw new Error('Authentication required');
       }
 
-      const response = await fetch('/api/organizations', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/organizations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
