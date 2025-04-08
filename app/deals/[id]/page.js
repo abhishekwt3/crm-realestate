@@ -1,83 +1,63 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../providers/AuthProvider';
+import AddNoteModal from '../components/AddNoteModal';
+import ScheduleMeetingModal from '../components/ScheduleMeetingModal';
+import UploadDocumentModal from '../components/UploadDocumentModal';
+import AddTaskModal from '../components/AddTaskModal';
 
-export default function DealDetail({ params }) {
+export default function DealDetails() {
+  // Use the useParams hook to get route parameters
+  const params = useParams();
   const dealId = params.id;
-  const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
   
-  // Deal state
+  const { user } = useAuth();
   const [deal, setDeal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const router = useRouter();
   
-  // Additional data
+  // Modal states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
+  const [isScheduleMeetingModalOpen, setIsScheduleMeetingModalOpen] = useState(false);
+  const [isUploadDocumentModalOpen, setIsUploadDocumentModalOpen] = useState(false);
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    property_id: '',
+    assigned_to: '',
+    status: '',
+    value: ''
+  });
+  const [properties, setProperties] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [tasksLoading, setTasksLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [updateError, setUpdateError] = useState(null);
+  const [updateSuccess, setUpdateSuccess] = useState(false);
   
-  // Active tab state
-  const [activeTab, setActiveTab] = useState('discussions');
-  
-  // Form states
-  const [discussionForm, setDiscussionForm] = useState({ comments: '' });
-  const [taskForm, setTaskForm] = useState({ 
-    title: '',
-    description: '', 
-    due_date: '', 
-    status: 'Pending',
-    assigned_to: '' 
-  });
-  const [meetingForm, setMeetingForm] = useState({ 
-    title: '', 
-    datetime: '', 
-    description: '', 
-    location: '',
-    assigned_to: '' 
-  });
-  const [assignForm, setAssignForm] = useState({ 
-    assigned_to: '' 
-  });
-  
-  // Submission states
-  const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(null);
-  
-  // Fetch deal data
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/login');
-      return;
-    }
-    
-    if (user) {
-      fetchDealData();
-      fetchTeamMembers();
-    }
-  }, [user, authLoading, dealId, router]);
+    fetchDealDetails();
+  }, [dealId]);
   
-  // Fetch tasks when active tab changes to tasks
-  useEffect(() => {
-    if (activeTab === 'tasks' && deal) {
-      fetchTasks();
-    }
-  }, [activeTab, deal]);
-  
-  const fetchDealData = async () => {
+  const fetchDealDetails = async () => {
     try {
       setLoading(true);
       setError(null);
       
+      // Get token from localStorage
       const token = localStorage.getItem('token');
+      
       if (!token) {
         throw new Error('Authentication required');
       }
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/deals/${dealId}`, {
+      // Fetch deal details
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api'}/deals/${dealId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -85,314 +65,249 @@ export default function DealDetail({ params }) {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch deal');
+        throw new Error(errorData.error || 'Failed to fetch deal details');
       }
       
       const data = await response.json();
       setDeal(data.deal);
       
-      // Initialize assignment form with current assignee
-      if (data.deal.assignedTo) {
-        setAssignForm({ assigned_to: data.deal.assignedTo.id.toString() });
+      // Initialize edit form with deal data
+      setEditFormData({
+        name: data.deal.name || '',
+        property_id: data.deal.property_id?.toString() || '',
+        assigned_to: data.deal.assigned_to?.toString() || '',
+        status: data.deal.status || 'New',
+        value: data.deal.value?.toString() || ''
+      });
+      
+      // Fetch properties and team members for the edit form
+      if (user && user.organisation_id) {
+        fetchPropertiesAndTeamMembers(token);
+        fetchTasks(token);
       }
     } catch (err) {
-      console.error('Error fetching deal:', err);
       setError(err.message);
+      console.error('Error fetching deal details:', err);
     } finally {
       setLoading(false);
     }
   };
   
-  const fetchTeamMembers = async () => {
+  const fetchPropertiesAndTeamMembers = async (token) => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/team`, {
+      // Fetch properties
+      const propertiesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api'}/properties`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch team members');
+      if (propertiesResponse.ok) {
+        const propertiesData = await propertiesResponse.json();
+        setProperties(propertiesData.properties || []);
       }
       
-      const data = await response.json();
-      setTeamMembers(data.teamMembers || []);
+      // Fetch team members
+      const teamResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api'}/team`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (teamResponse.ok) {
+        const teamData = await teamResponse.json();
+        setTeamMembers(teamData.teamMembers || []);
+      }
     } catch (err) {
-      console.error('Error fetching team members:', err);
+      console.error('Error fetching form data:', err);
     }
   };
   
-  const fetchTasks = async () => {
+  const fetchTasks = async (token) => {
     try {
-      setTasksLoading(true);
-      
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/tasks?dealId=${dealId}`, {
+      // Fetch tasks related to this deal
+      const tasksResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api'}/tasks?dealId=${dealId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch tasks');
+      if (tasksResponse.ok) {
+        const tasksData = await tasksResponse.json();
+        setTasks(tasksData.tasks || []);
       }
-      
-      const data = await response.json();
-      setTasks(data.tasks || []);
     } catch (err) {
       console.error('Error fetching tasks:', err);
-    } finally {
-      setTasksLoading(false);
     }
   };
   
-  // Handle form changes
-  const handleDiscussionChange = (e) => {
-    setDiscussionForm({ ...discussionForm, [e.target.name]: e.target.value });
+  const handleEditModalOpen = () => {
+    setIsEditModalOpen(true);
+    setUpdateError(null);
+    setUpdateSuccess(false);
   };
   
-  const handleTaskChange = (e) => {
-    setTaskForm({ ...taskForm, [e.target.name]: e.target.value });
+  const handleEditModalClose = () => {
+    setIsEditModalOpen(false);
   };
   
-  const handleMeetingChange = (e) => {
-    setMeetingForm({ ...meetingForm, [e.target.name]: e.target.value });
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleAssignChange = (e) => {
-    setAssignForm({ ...assignForm, [e.target.name]: e.target.value });
-  };
-  
-  // Handle form submissions
-  const handleSubmitDiscussion = async (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
-    if (!discussionForm.comments.trim()) return;
+    setUpdateLoading(true);
+    setUpdateError(null);
+    setUpdateSuccess(false);
     
     try {
-      setSubmitting(true);
-      setSuccess(null);
-      
+      // Get token from localStorage
       const token = localStorage.getItem('token');
+      
       if (!token) {
         throw new Error('Authentication required');
       }
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/deals/${dealId}/discussions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(discussionForm)
-      });
+      // Prepare form data
+      const formData = {
+        ...editFormData,
+        property_id: editFormData.property_id ? parseInt(editFormData.property_id) : null,
+        assigned_to: editFormData.assigned_to ? parseInt(editFormData.assigned_to) : null,
+        value: editFormData.value ? parseFloat(editFormData.value) : null
+      };
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to add discussion');
-      }
-      
-      // Clear the form
-      setDiscussionForm({ comments: '' });
-      setSuccess('Discussion added successfully');
-      
-      // Refresh deal data
-      fetchDealData();
-    } catch (err) {
-      console.error('Error submitting discussion:', err);
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-  
-  const handleSubmitTask = async (e) => {
-    e.preventDefault();
-    if (!taskForm.title.trim()) return;
-    
-    try {
-      setSubmitting(true);
-      setSuccess(null);
-      
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/tasks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...taskForm,
-          deal_id: dealId,
-          assigned_to: taskForm.assigned_to || null
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to add task');
-      }
-      
-      // Clear the form
-      setTaskForm({ title: '', description: '', due_date: '', status: 'Pending', assigned_to: '' });
-      setSuccess('Task added successfully');
-      
-      // Refresh tasks
-      fetchTasks();
-    } catch (err) {
-      console.error('Error submitting task:', err);
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-  
-  const handleSubmitMeeting = async (e) => {
-    e.preventDefault();
-    if (!meetingForm.title.trim() || !meetingForm.datetime) return;
-    
-    try {
-      setSubmitting(true);
-      setSuccess(null);
-      
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/deals/${dealId}/meetings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...meetingForm,
-          team_member_id: meetingForm.assigned_to || null
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to add meeting');
-      }
-      
-      // Clear the form
-      setMeetingForm({ title: '', datetime: '', description: '', location: '', assigned_to: '' });
-      setSuccess('Meeting added successfully');
-      
-      // Refresh deal data
-      fetchDealData();
-    } catch (err) {
-      console.error('Error submitting meeting:', err);
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-  
-  const handleAssignDeal = async (e) => {
-    e.preventDefault();
-    
-    try {
-      setSubmitting(true);
-      setSuccess(null);
-      
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/deals/${dealId}`, {
+      // Update deal
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api'}/deals/${dealId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          assigned_to: assignForm.assigned_to || null
-        })
+        body: JSON.stringify(formData)
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to assign deal');
+        throw new Error(errorData.error || 'Failed to update deal');
       }
       
-      setSuccess('Deal assigned successfully');
-      
       // Refresh deal data
-      fetchDealData();
+      fetchDealDetails();
+      setUpdateSuccess(true);
+      
+      // Close modal after short delay
+      setTimeout(() => {
+        setIsEditModalOpen(false);
+        setUpdateSuccess(false);
+      }, 1500);
     } catch (err) {
-      console.error('Error assigning deal:', err);
-      setError(err.message);
+      setUpdateError(err.message);
+      console.error('Error updating deal:', err);
     } finally {
-      setSubmitting(false);
+      setUpdateLoading(false);
     }
   };
   
-  // Format date for display
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this deal?')) {
+      return;
+    }
+    
+    try {
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api'}/deals/${dealId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete deal');
+      }
+      
+      // Redirect to deals list
+      router.push('/deals');
+    } catch (err) {
+      setError(err.message);
+      console.error('Error deleting deal:', err);
+    }
+  };
+  
+  // Handler for note added
+  const handleNoteAdded = () => {
+    fetchDealDetails(); // Refresh the deal details to show the new note
+  };
+  
+  // Handler for meeting added
+  const handleMeetingAdded = () => {
+    fetchDealDetails(); // Refresh the deal details to show the new meeting
+  };
+  
+  // Handler for document uploaded
+  const handleDocumentUploaded = () => {
+    fetchDealDetails(); // Refresh the deal details
+  };
+  
+  // Handler for task added
+  const handleTaskAdded = () => {
+    fetchDealDetails(); // Refresh the deal details
+    fetchTasks(localStorage.getItem('token')); // Refresh tasks
+  };
+  
+  // Formatting helper
+  const formatCurrency = (value) => {
+    if (value === null || value === undefined) return '-';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value);
+  };
+  
+  // Format date
   const formatDate = (dateString) => {
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleString();
   };
   
-  const formatDueDate = (dateString) => {
-    if (!dateString) return 'No due date';
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
-  };
-  
-  // Loading state
-  if (authLoading || loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-      </div>
-    );
+  if (loading) {
+    return <div className="p-4">Loading deal details...</div>;
   }
   
-  // Error state
   if (error) {
     return (
-      <div className="max-w-4xl mx-auto p-4">
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
-          <p>{error}</p>
+      <div className="p-4">
+        <div className="bg-red-100 p-4 rounded-md text-red-700 mb-4">
+          Error: {error}
         </div>
         <button 
-          onClick={() => fetchDealData()} 
-          className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+          onClick={() => window.location.reload()} 
+          className="btn-secondary"
         >
           Try Again
         </button>
-        <Link href="/deals" className="ml-4 text-indigo-600 hover:underline">
-          Back to Deals
-        </Link>
       </div>
     );
   }
   
-  // Not found state
   if (!deal) {
     return (
-      <div className="max-w-4xl mx-auto p-4">
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
-          <p>Deal not found</p>
+      <div className="p-4">
+        <div className="bg-yellow-100 p-4 rounded-md text-yellow-700 mb-4">
+          Deal not found
         </div>
-        <Link href="/deals" className="text-indigo-600 hover:underline">
+        <Link href="/deals" className="btn-secondary">
           Back to Deals
         </Link>
       </div>
@@ -400,456 +315,438 @@ export default function DealDetail({ params }) {
   }
   
   return (
-    <div className="max-w-6xl mx-auto p-4">
-      {/* Deal Header */}
-      <div className="flex justify-between items-start mb-6">
+    <div>
+      <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">{deal.name}</h1>
-          <div className="flex items-center mt-2">
-            <span className={`px-2 py-1 text-xs rounded-full mr-3 
-              ${deal.status === 'New' ? 'bg-blue-100 text-blue-800' : 
-                deal.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' : 
-                  deal.status === 'Closed Won' ? 'bg-green-100 text-green-800' : 
-                    'bg-red-100 text-red-800'}`}
-            >
-              {deal.status}
-            </span>
-            {deal.value && (
-              <span className="text-gray-700">
-                ${deal.value.toLocaleString()}
-              </span>
-            )}
-          </div>
-          <p className="text-gray-600 mt-1">
-            Property: {deal.property?.name || 'No property'}
-            {deal.property?.address && ` - ${deal.property.address}`}
-          </p>
           <p className="text-gray-600">
-            Assigned to: {deal.assignedTo?.team_member_name || 'Unassigned'}
+            {deal.property ? (
+              <Link href={`/properties/${deal.property.id}`} className="text-indigo-600 hover:text-indigo-900">
+                {deal.property.name}
+              </Link>
+            ) : (
+              'No property assigned'
+            )}
           </p>
         </div>
-        <div className="flex space-x-3">
-          <Link 
-            href={`/deals/${dealId}/edit`} 
-            className="px-4 py-2 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+        <div className="flex space-x-2">
+          <button 
+            onClick={handleEditModalOpen} 
+            className="btn-secondary"
           >
             Edit Deal
-          </Link>
-          <Link 
-            href="/deals" 
-            className="px-4 py-2 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
-          >
-            Back to Deals
-          </Link>
+          </button>
+          <button onClick={handleDelete} className="btn bg-red-600 hover:bg-red-700">
+            Delete
+          </button>
         </div>
       </div>
       
-      {/* Success Message */}
-      {success && (
-        <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4">
-          <p>{success}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold mb-4">Deal Details</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Status</p>
+                <p className="mt-1">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                    ${deal.status === 'New' ? 'bg-blue-100 text-blue-800' : 
+                      deal.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' : 
+                        deal.status === 'Closed Won' ? 'bg-green-100 text-green-800' : 
+                          'bg-red-100 text-red-800'}`}>
+                    {deal.status}
+                  </span>
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-sm font-medium text-gray-500">Value</p>
+                <p className="mt-1">{formatCurrency(deal.value)}</p>
+              </div>
+              
+              <div>
+                <p className="text-sm font-medium text-gray-500">Assigned To</p>
+                <p className="mt-1">{deal.assignedTo?.team_member_name || 'Unassigned'}</p>
+              </div>
+              
+              <div>
+                <p className="text-sm font-medium text-gray-500">Created</p>
+                <p className="mt-1">
+                  {deal.created_at ? new Date(deal.created_at).toLocaleDateString() : '-'}
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-sm font-medium text-gray-500">Last Updated</p>
+                <p className="mt-1">
+                  {deal.updated_at ? new Date(deal.updated_at).toLocaleDateString() : '-'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+            
+            <div className="space-y-3">
+              <button 
+                onClick={() => setIsAddNoteModalOpen(true)} 
+                className="btn w-full text-center block"
+              >
+                Add Note
+              </button>
+              <button 
+                onClick={() => setIsScheduleMeetingModalOpen(true)} 
+                className="btn-secondary w-full text-center block"
+              >
+                Schedule Meeting
+              </button>
+              <button 
+                onClick={() => setIsAddTaskModalOpen(true)} 
+                className="btn-secondary w-full text-center block"
+              >
+                Add Task
+              </button>
+              <button 
+                onClick={() => setIsUploadDocumentModalOpen(true)} 
+                className="btn-secondary w-full text-center block"
+              >
+                Upload Document
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Notes Section */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Notes</h2>
+          <button
+            onClick={() => setIsAddNoteModalOpen(true)}
+            className="text-sm text-indigo-600 hover:text-indigo-900"
+          >
+            + Add Note
+          </button>
+        </div>
+        
+        {deal.notes && deal.notes.length > 0 ? (
+          <div className="space-y-4">
+            {deal.notes.map(note => (
+              <div key={note.id} className="border-l-4 border-indigo-500 pl-4 py-2">
+                <div className="flex justify-between">
+                  <p className="text-sm font-medium">
+                    {note.teamMember?.team_member_name || 'System'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {formatDate(note.timestamp)}
+                  </p>
+                </div>
+                <p className="mt-1 text-gray-700">{note.comments}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">No notes yet. Add a note to keep track of important information.</p>
+        )}
+      </div>
+      
+      {/* Tasks Section */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Tasks</h2>
+          <button
+            onClick={() => setIsAddTaskModalOpen(true)}
+            className="text-sm text-indigo-600 hover:text-indigo-900"
+          >
+            + Add Task
+          </button>
+        </div>
+        
+        {tasks && tasks.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Task
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Due Date
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Assigned To
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {tasks.map(task => (
+                  <tr key={task.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{task.title}</div>
+                      {task.description && (
+                        <div className="text-xs text-gray-500 mt-1">{task.description}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        ${task.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : 
+                          task.status === 'In Progress' ? 'bg-blue-100 text-blue-800' : 
+                            task.status === 'Completed' ? 'bg-green-100 text-green-800' : 
+                              'bg-gray-100 text-gray-800'}`}>
+                        {task.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {task.assignedTo?.team_member_name || 'Unassigned'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-gray-500">No tasks yet. Add a task to track action items for this deal.</p>
+        )}
+      </div>
+      
+      {/* Meetings Section */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Meetings</h2>
+          <button
+            onClick={() => setIsScheduleMeetingModalOpen(true)}
+            className="text-sm text-indigo-600 hover:text-indigo-900"
+          >
+            + Schedule Meeting
+          </button>
+        </div>
+        
+        {deal.meetings && deal.meetings.length > 0 ? (
+          <div className="space-y-4">
+            {deal.meetings.map(meeting => (
+              <div key={meeting.id} className="bg-gray-50 p-4 rounded-md">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-medium">{meeting.title || 'Untitled Meeting'}</h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {formatDate(meeting.datetime)}
+                    </p>
+                  </div>
+                  <span className="text-sm text-gray-500">
+                    {meeting.teamMember?.team_member_name || 'Unassigned'}
+                  </span>
+                </div>
+                {meeting.location && (
+                  <p className="text-sm mt-2">
+                    <span className="font-medium">Location:</span> {meeting.location}
+                  </p>
+                )}
+                {meeting.description && (
+                  <p className="text-sm mt-2">{meeting.description}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">No meetings scheduled yet.</p>
+        )}
+      </div>
+      
+      {/* Documents Section */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Documents</h2>
+          <button
+            onClick={() => setIsUploadDocumentModalOpen(true)}
+            className="text-sm text-indigo-600 hover:text-indigo-900"
+          >
+            + Upload Document
+          </button>
+        </div>
+        
+        <p className="text-gray-500">No documents uploaded yet.</p>
+      </div>
+      
+      {/* Edit Deal Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          {/* Modal content with shadow and no backdrop */}
+          <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative z-10">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Edit Deal</h2>
+              <button
+                onClick={handleEditModalClose}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {updateError && (
+              <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+                {updateError}
+              </div>
+            )}
+            
+            {updateSuccess && (
+              <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-md">
+                Deal updated successfully!
+              </div>
+            )}
+            
+            <form onSubmit={handleEditSubmit}>
+              <div className="mb-4">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Deal Name *
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={editFormData.name}
+                  onChange={handleEditChange}
+                  required
+                  className="form-input"
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="property_id" className="block text-sm font-medium text-gray-700 mb-1">
+                  Property
+                </label>
+                <select
+                  id="property_id"
+                  name="property_id"
+                  value={editFormData.property_id}
+                  onChange={handleEditChange}
+                  className="form-input"
+                >
+                  <option value="">Select a property</option>
+                  {properties.map(property => (
+                    <option key={property.id} value={property.id}>
+                      {property.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="assigned_to" className="block text-sm font-medium text-gray-700 mb-1">
+                  Assigned To
+                </label>
+                <select
+                  id="assigned_to"
+                  name="assigned_to"
+                  value={editFormData.assigned_to}
+                  onChange={handleEditChange}
+                  className="form-input"
+                >
+                  <option value="">Unassigned</option>
+                  {teamMembers.map(member => (
+                    <option key={member.id} value={member.id}>
+                      {member.team_member_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  id="status"
+                  name="status"
+                  value={editFormData.status}
+                  onChange={handleEditChange}
+                  className="form-input"
+                >
+                  <option value="New">New</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Closed Won">Closed Won</option>
+                  <option value="Closed Lost">Closed Lost</option>
+                </select>
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="value" className="block text-sm font-medium text-gray-700 mb-1">
+                  Deal Value
+                </label>
+                <input
+                  type="number"
+                  id="value"
+                  name="value"
+                  value={editFormData.value}
+                  onChange={handleEditChange}
+                  min="0"
+                  step="0.01"
+                  className="form-input"
+                  placeholder="Enter deal value"
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-2 mt-6">
+                <button
+                  type="button"
+                  onClick={handleEditModalClose}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateLoading}
+                  className="btn"
+                >
+                  {updateLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
       
-      {/* Assign Deal Form */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Assign Deal</h2>
-        <form onSubmit={handleAssignDeal} className="flex space-x-4">
-          <div className="flex-1">
-            <select
-              name="assigned_to"
-              value={assignForm.assigned_to}
-              onChange={handleAssignChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-            >
-              <option value="">Unassigned</option>
-              {teamMembers.map(member => (
-                <option key={member.id} value={member.id}>
-                  {member.team_member_name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {submitting ? 'Assigning...' : 'Assign'}
-          </button>
-        </form>
-      </div>
+      {/* Modals */}
+      <AddNoteModal
+        isOpen={isAddNoteModalOpen}
+        onClose={() => setIsAddNoteModalOpen(false)}
+        dealId={dealId}
+        onNoteAdded={handleNoteAdded}
+      />
       
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="flex -mb-px">
-          <button
-            onClick={() => setActiveTab('discussions')}
-            className={`py-4 px-6 border-b-2 font-medium text-sm ${
-              activeTab === 'discussions'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Discussions
-          </button>
-          <button
-            onClick={() => setActiveTab('tasks')}
-            className={`py-4 px-6 border-b-2 font-medium text-sm ${
-              activeTab === 'tasks'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Tasks
-          </button>
-          <button
-            onClick={() => setActiveTab('meetings')}
-            className={`py-4 px-6 border-b-2 font-medium text-sm ${
-              activeTab === 'meetings'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Meetings
-          </button>
-        </nav>
-      </div>
+      <ScheduleMeetingModal
+        isOpen={isScheduleMeetingModalOpen}
+        onClose={() => setIsScheduleMeetingModalOpen(false)}
+        dealId={dealId}
+        onMeetingAdded={handleMeetingAdded}
+        teamMembers={teamMembers}
+      />
       
-      {/* Tab Content */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        {/* Discussions Tab */}
-        {activeTab === 'discussions' && (
-          <div>
-            <h2 className="text-lg font-semibold mb-4">Discussions</h2>
-            <form onSubmit={handleSubmitDiscussion} className="mb-6">
-              <div className="mb-4">
-                <textarea
-                  name="comments"
-                  value={discussionForm.comments}
-                  onChange={handleDiscussionChange}
-                  placeholder="Add a new comment..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  rows="3"
-                  required
-                ></textarea>
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {submitting ? 'Posting...' : 'Post Comment'}
-                </button>
-              </div>
-            </form>
-            
-            <div className="space-y-4">
-              {deal.discussions && deal.discussions.length > 0 ? (
-                deal.discussions.map(discussion => (
-                  <div key={discussion.id} className="border-b pb-4">
-                    <div className="flex justify-between items-start">
-                      <p className="font-medium">
-                        {discussion.teamMember?.team_member_name || 'Unknown User'}
-                      </p>
-                      <span className="text-sm text-gray-500">
-                        {formatDate(discussion.timestamp)}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-gray-700">{discussion.comments}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-gray-500 text-center py-4">No discussions yet</p>
-              )}
-            </div>
-          </div>
-        )}
-        
-        {/* Tasks Tab */}
-        {activeTab === 'tasks' && (
-          <div>
-            <h2 className="text-lg font-semibold mb-4">Tasks</h2>
-            <form onSubmit={handleSubmitTask} className="mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                    Task Title
-                  </label>
-                  <input
-                    type="text"
-                    id="title"
-                    name="title"
-                    value={taskForm.title}
-                    onChange={handleTaskChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="due_date" className="block text-sm font-medium text-gray-700 mb-1">
-                    Due Date
-                  </label>
-                  <input
-                    type="datetime-local"
-                    id="due_date"
-                    name="due_date"
-                    value={taskForm.due_date}
-                    onChange={handleTaskChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                    Status
-                  </label>
-                  <select
-                    id="status"
-                    name="status"
-                    value={taskForm.status}
-                    onChange={handleTaskChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Completed">Completed</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="assigned_to" className="block text-sm font-medium text-gray-700 mb-1">
-                    Assign To
-                  </label>
-                  <select
-                    id="assigned_to"
-                    name="assigned_to"
-                    value={taskForm.assigned_to}
-                    onChange={handleTaskChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="">Unassigned</option>
-                    {teamMembers.map(member => (
-                      <option key={member.id} value={member.id}>
-                        {member.team_member_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="md:col-span-2">
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    id="description"
-                    name="description"
-                    value={taskForm.description}
-                    onChange={handleTaskChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    rows="2"
-                  ></textarea>
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {submitting ? 'Adding...' : 'Add Task'}
-                </button>
-              </div>
-            </form>
-            
-            {/* Tasks List */}
-            <h3 className="text-md font-medium mb-3 border-b pb-2">Task List</h3>
-            {tasksLoading ? (
-              <div className="flex justify-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"></div>
-              </div>
-            ) : tasks.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">No tasks yet</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Title
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Due Date
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Assigned To
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {tasks.map(task => (
-                      <tr key={task.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {task.title}
-                          </div>
-                          {task.description && (
-                            <div className="text-xs text-gray-500 mt-1 max-w-xs truncate">
-                              {task.description}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                            ${task.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : 
-                              task.status === 'In Progress' ? 'bg-blue-100 text-blue-800' : 
-                                'bg-green-100 text-green-800'}`}
-                          >
-                            {task.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {formatDueDate(task.due_date)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {task.assignedTo?.team_member_name || 'Unassigned'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-        
-        {/* Meetings Tab */}
-        {activeTab === 'meetings' && (
-          <div>
-            <h2 className="text-lg font-semibold mb-4">Meetings</h2>
-            <form onSubmit={handleSubmitMeeting} className="mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                    Meeting Title
-                  </label>
-                  <input
-                    type="text"
-                    id="title"
-                    name="title"
-                    value={meetingForm.title}
-                    onChange={handleMeetingChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="datetime" className="block text-sm font-medium text-gray-700 mb-1">
-                    Date & Time
-                  </label>
-                  <input
-                    type="datetime-local"
-                    id="datetime"
-                    name="datetime"
-                    value={meetingForm.datetime}
-                    onChange={handleMeetingChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
-                    Location
-                  </label>
-                  <input
-                    type="text"
-                    id="location"
-                    name="location"
-                    value={meetingForm.location}
-                    onChange={handleMeetingChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="assigned_to" className="block text-sm font-medium text-gray-700 mb-1">
-                    Assign To
-                  </label>
-                  <select
-                    id="assigned_to"
-                    name="assigned_to"
-                    value={meetingForm.assigned_to}
-                    onChange={handleMeetingChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="">Unassigned</option>
-                    {teamMembers.map(member => (
-                      <option key={member.id} value={member.id}>
-                        {member.team_member_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="md:col-span-2">
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    id="description"
-                    name="description"
-                    value={meetingForm.description}
-                    onChange={handleMeetingChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    rows="2"
-                  ></textarea>
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {submitting ? 'Scheduling...' : 'Schedule Meeting'}
-                </button>
-              </div>
-            </form>
-            
-            <div className="space-y-4">
-              {deal.meetings && deal.meetings.length > 0 ? (
-                <>
-                  <h3 className="text-md font-medium mb-3 border-b pb-2">Scheduled Meetings</h3>
-                  {deal.meetings.map(meeting => (
-                    <div key={meeting.id} className="border-b pb-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium">{meeting.title}</p>
-                          <p className="text-sm text-gray-700">
-                            {meeting.location && `Location: ${meeting.location}`}
-                          </p>
-                          {meeting.description && (
-                            <p className="mt-2 text-gray-700">{meeting.description}</p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-500">
-                            {formatDate(meeting.datetime)}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {meeting.teamMember?.team_member_name || 'Unassigned'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <p className="text-gray-500 text-center py-4">No meetings scheduled</p>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      <AddTaskModal
+        isOpen={isAddTaskModalOpen}
+        onClose={() => setIsAddTaskModalOpen(false)}
+        dealId={dealId}
+        onTaskAdded={handleTaskAdded}
+        teamMembers={teamMembers}
+      />
+      
+      <UploadDocumentModal
+        isOpen={isUploadDocumentModalOpen}
+        onClose={() => setIsUploadDocumentModalOpen(false)}
+        dealId={dealId}
+        onDocumentUploaded={handleDocumentUploaded}
+      />
     </div>
   );
 }

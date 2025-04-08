@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../providers/AuthProvider';
 
-export default function TeamMemberDetail({ params }) {
+export default function TeamMemberDetail() {
+  // Use the useParams hook to get route parameters
+  const params = useParams();
   const memberId = params.id;
+  
   const { user, loading: authLoading } = useAuth();
   const [teamMember, setTeamMember] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -171,7 +174,7 @@ export default function TeamMemberDetail({ params }) {
           </svg>
           <h2 className="text-xl font-semibold mt-4 mb-2">Team Member Not Found</h2>
           <p className="text-gray-600 mb-6">
-            The team member you're looking for doesn't exist or has been removed from your organization.
+            The team member you are looking for does not exist or has been removed from your organization.
           </p>
           
           <div className="space-y-4">
@@ -246,7 +249,7 @@ export default function TeamMemberDetail({ params }) {
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-yellow-800">Invitation Pending</h3>
                 <div className="mt-2 text-sm text-yellow-700">
-                  <p>This team member hasn't accepted their invitation yet.</p>
+                  <p>This team member has not accepted their invitation yet.</p>
                 </div>
                 <div className="mt-4">
                   <button

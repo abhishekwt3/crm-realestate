@@ -49,8 +49,8 @@ export default function InviteTeamMember() {
         throw new Error('Authentication required');
       }
 
-      // Create team member invitation
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/team/invite`, {
+      // Create team member directly without sending email
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/team`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -59,18 +59,19 @@ export default function InviteTeamMember() {
         body: JSON.stringify({
           team_member_name: formData.name,
           team_member_email_id: formData.email,
-          role: formData.role,
           organisation_id: user.organisation_id
         })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to invite team member');
+        throw new Error(errorData.error || 'Failed to add team member');
       }
 
       const data = await response.json();
-      setSuccess(`Invitation sent to ${formData.email} successfully!`);
+      
+      // Show success message
+      setSuccess(`Team member ${formData.name} added successfully! (Note: Email invitation disabled in development mode)`);
       
       // Clear form data
       setFormData({
@@ -86,21 +87,18 @@ export default function InviteTeamMember() {
     }
   };
 
-  // If still checking authentication, show loading
-  if (authLoading) {
+  // Prevent access if not logged in
+  if (!user) {
+    return null;
+  }
+
+  // If user doesn't have an organization, redirect (handled by useEffect)
+  if (user && !user.organisation_id) {
     return (
-      <div className="flex justify-center items-center min-h-[300px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto"></div>
-          <p className="mt-3 text-gray-600">Checking authentication...</p>
-        </div>
+      <div className="text-center py-8">
+        <p>You need to create an organization first. Redirecting...</p>
       </div>
     );
-  }
-  
-  // If not authenticated (and not loading), we'll redirect in useEffect
-  if (!user || !user.organisation_id) {
-    return null;
   }
 
   return (
@@ -181,54 +179,18 @@ export default function InviteTeamMember() {
               disabled={loading}
               className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
             >
-              {loading ? 'Sending Invitation...' : 'Send Invitation'}
+              {loading ? 'Adding Team Member...' : 'Add Team Member'}
             </button>
           </div>
         </form>
       </div>
       
       <div className="mt-6 bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-semibold mb-2">How It Works</h2>
-        <div className="space-y-4">
-          <div className="flex items-start">
-            <div className="flex-shrink-0 bg-indigo-100 rounded-full p-2 mr-3">
-              <span>1</span>
-            </div>
-            <div>
-              <h3 className="font-medium">Send Invitation</h3>
-              <p className="text-gray-600">Fill out the form above to send an invitation email to your team member.</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start">
-            <div className="flex-shrink-0 bg-indigo-100 rounded-full p-2 mr-3">
-              <span>2</span>
-            </div>
-            <div>
-              <h3 className="font-medium">Team Member Receives Email</h3>
-              <p className="text-gray-600">They'll get an email with a secure link to join your organization.</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start">
-            <div className="flex-shrink-0 bg-indigo-100 rounded-full p-2 mr-3">
-              <span>3</span>
-            </div>
-            <div>
-              <h3 className="font-medium">Team Member Creates Account</h3>
-              <p className="text-gray-600">They'll create an account or log in, and automatically join your organization.</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start">
-            <div className="flex-shrink-0 bg-indigo-100 rounded-full p-2 mr-3">
-              <span>4</span>
-            </div>
-            <div>
-              <h3 className="font-medium">Start Collaborating</h3>
-              <p className="text-gray-600">Once they join, they can access your organization's data and collaborate with the team.</p>
-            </div>
-          </div>
+        <h2 className="text-lg font-semibold mb-2">Development Mode Note</h2>
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+          <p className="text-sm">
+            <strong>Note:</strong> Email sending is disabled in development mode. Team members are added directly to the database.
+          </p>
         </div>
       </div>
     </div>
