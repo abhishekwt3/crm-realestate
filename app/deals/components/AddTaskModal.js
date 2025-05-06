@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../providers/AuthProvider';
 
 export default function AddTaskModal({ isOpen, onClose, dealId, onTaskAdded, teamMembers = [] }) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -13,10 +15,32 @@ export default function AddTaskModal({ isOpen, onClose, dealId, onTaskAdded, tea
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [currentUserTeamMember, setCurrentUserTeamMember] = useState(null);
+
+  // Find the current user's team member record (if any)
+  useEffect(() => {
+    if (user && user.teamMember && teamMembers.length > 0) {
+      const userTeamMember = teamMembers.find(
+        tm => tm.id === user.teamMember.id || tm.team_member_name === user.teamMember.name
+      );
+      if (userTeamMember) {
+        setCurrentUserTeamMember(userTeamMember);
+      }
+    }
+  }, [user, teamMembers]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAssignToMe = () => {
+    if (currentUserTeamMember) {
+      setFormData(prev => ({ 
+        ...prev, 
+        assigned_to: currentUserTeamMember.id.toString() 
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -197,9 +221,20 @@ export default function AddTaskModal({ isOpen, onClose, dealId, onTaskAdded, tea
           </div>
           
           <div className="mb-4">
-            <label htmlFor="assigned_to" className="block text-sm font-medium text-gray-700 mb-1">
-              Assigned To
-            </label>
+            <div className="flex justify-between items-center mb-1">
+              <label htmlFor="assigned_to" className="block text-sm font-medium text-gray-700">
+                Assigned To
+              </label>
+              {currentUserTeamMember && (
+                <button
+                  type="button"
+                  onClick={handleAssignToMe}
+                  className="text-sm text-indigo-600 hover:text-indigo-800"
+                >
+                  Assign to me
+                </button>
+              )}
+            </div>
             <select
               id="assigned_to"
               name="assigned_to"
@@ -209,8 +244,17 @@ export default function AddTaskModal({ isOpen, onClose, dealId, onTaskAdded, tea
             >
               <option value="">Unassigned</option>
               {teamMembers.map(member => (
-                <option key={member.id} value={member.id}>
+                <option 
+                  key={member.id} 
+                  value={member.id}
+                  className={
+                    currentUserTeamMember && currentUserTeamMember.id === member.id
+                    ? "font-semibold text-indigo-700"
+                    : ""
+                  }
+                >
                   {member.team_member_name}
+                  {currentUserTeamMember && currentUserTeamMember.id === member.id ? ' (Me)' : ''}
                 </option>
               ))}
             </select>

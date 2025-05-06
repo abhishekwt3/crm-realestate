@@ -9,6 +9,13 @@ import ScheduleMeetingModal from '../components/ScheduleMeetingModal';
 import UploadDocumentModal from '../components/UploadDocumentModal';
 import AddTaskModal from '../components/AddTaskModal';
 
+// Import tab components
+import NotesTab from '../components/NotesTab';
+import TasksTab from '../components/TasksTab';
+import MeetingsTab from '../components/MeetingsTab';
+import DocumentsTab from '../components/DocumentsTab';
+import TabsComponent from '../components/TabsComponent';
+
 export default function DealDetails() {
   // Use the useParams hook to get route parameters
   const params = useParams();
@@ -36,9 +43,11 @@ export default function DealDetails() {
   const [properties, setProperties] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [updateError, setUpdateError] = useState(null);
   const [updateSuccess, setUpdateSuccess] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
   
   useEffect(() => {
     fetchDealDetails();
@@ -84,6 +93,7 @@ export default function DealDetails() {
       if (user && user.organisation_id) {
         fetchPropertiesAndTeamMembers(token);
         fetchTasks(token);
+        fetchDocuments(token);
       }
     } catch (err) {
       setError(err.message);
@@ -138,6 +148,24 @@ export default function DealDetails() {
       }
     } catch (err) {
       console.error('Error fetching tasks:', err);
+    }
+  };
+  
+  const fetchDocuments = async (token) => {
+    try {
+      // Fetch documents related to this deal
+      const documentsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api'}/documents?deal_id=${dealId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (documentsResponse.ok) {
+        const documentsData = await documentsResponse.json();
+        setDocuments(documentsData.documents || []);
+      }
+    } catch (err) {
+      console.error('Error fetching documents:', err);
     }
   };
   
@@ -256,12 +284,13 @@ export default function DealDetails() {
   // Handler for document uploaded
   const handleDocumentUploaded = () => {
     fetchDealDetails(); // Refresh the deal details
+    fetchDocuments(localStorage.getItem('token')); // Specifically refresh documents
   };
   
   // Handler for task added
   const handleTaskAdded = () => {
     fetchDealDetails(); // Refresh the deal details
-    fetchTasks(localStorage.getItem('token')); // Refresh tasks
+    fetchTasks(localStorage.getItem('token')); // Specifically refresh tasks
   };
   
   // Formatting helper
@@ -273,12 +302,6 @@ export default function DealDetails() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(value);
-  };
-  
-  // Format date
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleString();
   };
   
   if (loading) {
@@ -314,6 +337,30 @@ export default function DealDetails() {
     );
   }
   
+  // Define tabs for the component
+  const tabDefinitions = [
+    { 
+      label: 'Notes', 
+      icon: '📝',
+      count: deal.discussions?.length || 0
+    },
+    { 
+      label: 'Tasks', 
+      icon: '✓',
+      count: tasks?.length || 0
+    },
+    { 
+      label: 'Meetings', 
+      icon: '📅',
+      count: deal.meetings?.length || 0
+    },
+    { 
+      label: 'Documents', 
+      icon: '📄',
+      count: documents?.length || 0
+    }
+  ];
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -422,161 +469,36 @@ export default function DealDetails() {
         </div>
       </div>
       
-      {/* Notes Section */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Notes</h2>
-          <button
-            onClick={() => setIsAddNoteModalOpen(true)}
-            className="text-sm text-indigo-600 hover:text-indigo-900"
-          >
-            + Add Note
-          </button>
-        </div>
+      {/* Tabbed Interface */}
+      <TabsComponent 
+        tabs={tabDefinitions}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+      >
+        {/* Notes Tab */}
+        <NotesTab 
+          notes={deal.discussions}
+          onAddNote={() => setIsAddNoteModalOpen(true)}
+        />
         
-        {deal.notes && deal.notes.length > 0 ? (
-          <div className="space-y-4">
-            {deal.notes.map(note => (
-              <div key={note.id} className="border-l-4 border-indigo-500 pl-4 py-2">
-                <div className="flex justify-between">
-                  <p className="text-sm font-medium">
-                    {note.teamMember?.team_member_name || 'System'}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {formatDate(note.timestamp)}
-                  </p>
-                </div>
-                <p className="mt-1 text-gray-700">{note.comments}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500">No notes yet. Add a note to keep track of important information.</p>
-        )}
-      </div>
-      
-      {/* Tasks Section */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Tasks</h2>
-          <button
-            onClick={() => setIsAddTaskModalOpen(true)}
-            className="text-sm text-indigo-600 hover:text-indigo-900"
-          >
-            + Add Task
-          </button>
-        </div>
+        {/* Tasks Tab */}
+        <TasksTab 
+          tasks={tasks}
+          onAddTask={() => setIsAddTaskModalOpen(true)}
+        />
         
-        {tasks && tasks.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Task
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Due Date
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Assigned To
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {tasks.map(task => (
-                  <tr key={task.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{task.title}</div>
-                      {task.description && (
-                        <div className="text-xs text-gray-500 mt-1">{task.description}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${task.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : 
-                          task.status === 'In Progress' ? 'bg-blue-100 text-blue-800' : 
-                            task.status === 'Completed' ? 'bg-green-100 text-green-800' : 
-                              'bg-gray-100 text-gray-800'}`}>
-                        {task.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {task.assignedTo?.team_member_name || 'Unassigned'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-gray-500">No tasks yet. Add a task to track action items for this deal.</p>
-        )}
-      </div>
-      
-      {/* Meetings Section */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Meetings</h2>
-          <button
-            onClick={() => setIsScheduleMeetingModalOpen(true)}
-            className="text-sm text-indigo-600 hover:text-indigo-900"
-          >
-            + Schedule Meeting
-          </button>
-        </div>
+        {/* Meetings Tab */}
+        <MeetingsTab 
+          meetings={deal.meetings}
+          onScheduleMeeting={() => setIsScheduleMeetingModalOpen(true)}
+        />
         
-        {deal.meetings && deal.meetings.length > 0 ? (
-          <div className="space-y-4">
-            {deal.meetings.map(meeting => (
-              <div key={meeting.id} className="bg-gray-50 p-4 rounded-md">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-medium">{meeting.title || 'Untitled Meeting'}</h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {formatDate(meeting.datetime)}
-                    </p>
-                  </div>
-                  <span className="text-sm text-gray-500">
-                    {meeting.teamMember?.team_member_name || 'Unassigned'}
-                  </span>
-                </div>
-                {meeting.location && (
-                  <p className="text-sm mt-2">
-                    <span className="font-medium">Location:</span> {meeting.location}
-                  </p>
-                )}
-                {meeting.description && (
-                  <p className="text-sm mt-2">{meeting.description}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500">No meetings scheduled yet.</p>
-        )}
-      </div>
-      
-      {/* Documents Section */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Documents</h2>
-          <button
-            onClick={() => setIsUploadDocumentModalOpen(true)}
-            className="text-sm text-indigo-600 hover:text-indigo-900"
-          >
-            + Upload Document
-          </button>
-        </div>
-        
-        <p className="text-gray-500">No documents uploaded yet.</p>
-      </div>
+        {/* Documents Tab */}
+        <DocumentsTab 
+          documents={documents}
+          onUploadDocument={() => setIsUploadDocumentModalOpen(true)}
+        />
+      </TabsComponent>
       
       {/* Edit Deal Modal */}
       {isEditModalOpen && (

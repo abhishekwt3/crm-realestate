@@ -1,0 +1,426 @@
+directive @auth on FIELD_DEFINITION
+
+scalar DateTime
+scalar Upload
+
+type User {
+  id: ID!
+  email: String!
+  role: String!
+  organisationId: ID
+  organisation: Organisation
+  teamMember: TeamMember
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Organisation {
+  id: ID!
+  organisationName: String!
+  teamMembers: [TeamMember!]
+  properties: [Property!]
+  contacts: [Contact!]
+  users: [User!]
+  invitations: [Invitation!]
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type TeamMember {
+  id: ID!
+  organisationId: ID!
+  organisation: Organisation!
+  teamMemberName: String!
+  teamMemberEmailId: String!
+  userId: ID
+  user: User
+  deals: [Deal!]
+  discussions: [Discussion!]
+  meetings: [Meeting!]
+  meetingNotes: [MeetingNotes!]
+  tasks: [Task!]
+  documents: [Document!]
+  invitations: [Invitation!]
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Contact {
+  id: ID!
+  name: String!
+  email: String
+  phone: String
+  organisationId: ID
+  organisation: Organisation
+  properties: [Property!]
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Property {
+  id: ID!
+  name: String!
+  address: String
+  ownerId: ID
+  owner: Contact
+  organisationId: ID!
+  organisation: Organisation!
+  status: String
+  deals: [Deal!]
+  documents: [Document!]
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Deal {
+  id: ID!
+  name: String!
+  propertyId: ID
+  property: Property
+  assignedTo: ID
+  assignedTeamMember: TeamMember
+  status: String!
+  value: Float
+  discussions: [Discussion!]
+  meetings: [Meeting!]
+  tasks: [Task!]
+  documents: [Document!]
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Discussion {
+  id: ID!
+  dealId: ID
+  deal: Deal
+  timestamp: DateTime!
+  comments: String
+  teamMemberId: ID
+  teamMember: TeamMember
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Meeting {
+  id: ID!
+  datetime: DateTime!
+  dealId: ID
+  deal: Deal
+  teamMemberId: ID
+  teamMember: TeamMember
+  title: String
+  description: String
+  location: String
+  notes: [MeetingNotes!]
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type MeetingNotes {
+  id: ID!
+  meetingId: ID!
+  meeting: Meeting!
+  timestamp: DateTime!
+  content: String!
+  teamMemberId: ID
+  teamMember: TeamMember
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Task {
+  id: ID!
+  title: String!
+  description: String
+  dueDate: DateTime
+  status: String!
+  assignedTo: ID
+  assignedTeamMember: TeamMember
+  dealId: ID
+  deal: Deal
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Document {
+  id: ID!
+  title: String!
+  fileUrl: String!
+  fileType: String
+  uploadedBy: ID
+  uploader: TeamMember
+  dealId: ID
+  deal: Deal
+  propertyId: ID
+  property: Property
+  uploadedAt: DateTime!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Invitation {
+  id: ID!
+  email: String!
+  token: String!
+  teamMemberId: ID!
+  teamMember: TeamMember!
+  organisationId: ID!
+  organisation: Organisation!
+  invitedBy: ID!
+  inviter: User!
+  status: String!
+  expiresAt: DateTime!
+  acceptedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type AuthResult {
+  token: String!
+  user: User!
+  setupRequired: Boolean
+  nextStep: String
+}
+
+type TokenInfo {
+  name: String!
+  email: String!
+  organizationName: String!
+  role: String!
+}
+
+# Input types for mutations
+input RegisterInput {
+  email: String!
+  password: String!
+  role: String
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+input CreateOrganisationInput {
+  organisationName: String!
+}
+
+input UpdateOrganisationInput {
+  organisationName: String!
+}
+
+input CreateTeamMemberInput {
+  teamMemberName: String!
+  teamMemberEmailId: String!
+  role: String
+}
+
+input UpdateTeamMemberInput {
+  teamMemberName: String!
+  teamMemberEmailId: String!
+}
+
+input CreateContactInput {
+  name: String!
+  email: String
+  phone: String
+  organisationId: ID
+}
+
+input UpdateContactInput {
+  name: String!
+  email: String
+  phone: String
+  organisationId: ID
+}
+
+input CreatePropertyInput {
+  name: String!
+  address: String
+  ownerId: ID
+  status: String
+  organisationId: ID
+}
+
+input UpdatePropertyInput {
+  name: String!
+  address: String
+  ownerId: ID
+  status: String
+}
+
+input CreateDealInput {
+  name: String!
+  propertyId: ID!
+  assignedTo: ID
+  status: String
+  value: Float
+  initialNote: String
+}
+
+input UpdateDealInput {
+  name: String!
+  propertyId: ID
+  assignedTo: ID
+  status: String
+  value: Float
+}
+
+input CreateDiscussionInput {
+  dealId: ID!
+  comments: String!
+}
+
+input CreateMeetingInput {
+  dealId: ID!
+  datetime: DateTime!
+  title: String
+  description: String
+  location: String
+}
+
+input CreateTaskInput {
+  title: String!
+  description: String
+  dueDate: DateTime
+  status: String
+  assignedTo: ID
+  dealId: ID
+}
+
+input UpdateTaskInput {
+  title: String!
+  description: String
+  dueDate: DateTime
+  status: String
+  assignedTo: ID
+  dealId: ID
+}
+
+input CreateDocumentInput {
+  title: String!
+  fileUrl: String!
+  fileType: String
+  dealId: ID
+  propertyId: ID
+}
+
+input JoinOrganisationInput {
+  token: String!
+  password: String!
+}
+
+input InviteTeamMemberInput {
+  teamMemberName: String!
+  teamMemberEmailId: String!
+  role: String
+}
+
+input ResendInvitationInput {
+  teamMemberId: ID!
+}
+
+# Queries
+type Query {
+  # Auth
+  me: User! @auth
+  
+  # Organizations
+  organisations: [Organisation!]! @auth
+  organisation(id: ID!): Organisation @auth
+  
+  # Team Members
+  teamMembers: [TeamMember!]! @auth
+  teamMember(id: ID!): TeamMember @auth
+  
+  # Contacts
+  contacts(query: String): [Contact!]! @auth
+  contact(id: ID!): Contact @auth
+  
+  # Properties
+  properties(status: String): [Property!]! @auth
+  property(id: ID!): Property @auth
+  
+  # Deals
+  deals(status: String, assignedTo: ID, propertyId: ID): [Deal!]! @auth
+  deal(id: ID!): Deal @auth
+  
+  # Discussions
+  discussions(dealId: ID!): [Discussion!]! @auth
+  
+  # Meetings
+  meetings(dealId: ID!): [Meeting!]! @auth
+  
+  # Tasks
+  tasks(status: String, assignedTo: ID, dealId: ID): [Task!]! @auth
+  task(id: ID!): Task @auth
+  
+  # Documents
+  documents(dealId: ID, propertyId: ID): [Document!]! @auth
+  document(id: ID!): Document @auth
+  
+  # Invitations
+  verifyInvitationToken(token: String!): TokenInfo
+  
+  # Health check
+  health: HealthStatus!
+}
+
+type HealthStatus {
+  status: String!
+  timestamp: String!
+  env: String
+}
+
+# Mutations
+type Mutation {
+  # Auth
+  register(input: RegisterInput!): AuthResult!
+  login(input: LoginInput!): AuthResult!
+  logout: Boolean!
+  
+  # Organizations
+  createOrganisation(input: CreateOrganisationInput!): Organisation! @auth
+  updateOrganisation(id: ID!, input: UpdateOrganisationInput!): Organisation! @auth
+  deleteOrganisation(id: ID!): Boolean! @auth
+  
+  # Team Members
+  createTeamMember(input: CreateTeamMemberInput!): TeamMember! @auth
+  updateTeamMember(id: ID!, input: UpdateTeamMemberInput!): TeamMember! @auth
+  deleteTeamMember(id: ID!): Boolean! @auth
+  
+  # Contacts
+  createContact(input: CreateContactInput!): Contact! @auth
+  updateContact(id: ID!, input: UpdateContactInput!): Contact! @auth
+  deleteContact(id: ID!): Boolean! @auth
+  
+  # Properties
+  createProperty(input: CreatePropertyInput!): Property! @auth
+  updateProperty(id: ID!, input: UpdatePropertyInput!): Property! @auth
+  deleteProperty(id: ID!): Boolean! @auth
+  
+  # Deals
+  createDeal(input: CreateDealInput!): Deal! @auth
+  updateDeal(id: ID!, input: UpdateDealInput!): Deal! @auth
+  deleteDeal(id: ID!): Boolean! @auth
+  
+  # Discussions
+  createDiscussion(input: CreateDiscussionInput!): Discussion! @auth
+  
+  # Meetings
+  createMeeting(input: CreateMeetingInput!): Meeting! @auth
+  
+  # Tasks
+  createTask(input: CreateTaskInput!): Task! @auth
+  updateTask(id: ID!, input: UpdateTaskInput!): Task! @auth
+  deleteTask(id: ID!): Boolean! @auth
+  
+  # Documents
+  createDocument(input: CreateDocumentInput!): Document! @auth
+  deleteDocument(id: ID!): Boolean! @auth
+  
+  # Team invitations
+  inviteTeamMember(input: InviteTeamMemberInput!): TeamMember! @auth
+  joinOrganisation(input: JoinOrganisationInput!): AuthResult!
+  resendInvitation(input: ResendInvitationInput!): Boolean! @auth
+}

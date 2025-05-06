@@ -1,0 +1,89 @@
+# Where are all the schema files located?
+schema:
+  - internal/graphql/schema/*.graphql
+
+# Where should the generated Go code be?
+exec:
+  filename: internal/graphql/generated/generated.go
+  package: generated
+
+# Where should any generated models go?
+model:
+  filename: internal/graphql/models/models_gen.go
+  package: models
+
+# Where should the resolver implementations go?
+resolver:
+  layout: follow-schema
+  dir: internal/graphql/resolvers/generated
+  package: generated
+  filename_template: "{name}.resolvers.go"
+
+# Optional: turn on use `gqlgen:"fieldName"` tags in your models
+struct_tag: json
+
+# Optional: turn on to use []Thing instead of []*Thing
+omit_slice_element_pointers: false
+
+# Optional: set to speed up generation time by not performing a final validation pass.
+skip_validation: false
+
+# gqlgen will search for any type names in the schema in these packages
+autobind:
+  - "crmgo/internal/models"
+
+# This section declares type mapping between the GraphQL and go type systems
+#
+# The first line in each type will be used as defaults for resolver arguments and
+# modelgen, the others will be allowed when binding to fields. Configure them to
+# your liking
+models:
+  ID:
+    model:
+      - github.com/99designs/gqlgen/graphql.ID
+      - github.com/99designs/gqlgen/graphql.Int
+      - github.com/99designs/gqlgen/graphql.Int64
+      - github.com/99designs/gqlgen/graphql.Int32
+  Int:
+    model:
+      - github.com/99designs/gqlgen/graphql.Int
+      - github.com/99designs/gqlgen/graphql.Int64
+      - github.com/99designs/gqlgen/graphql.Int32
+  Float:
+    model:
+      - github.com/99designs/gqlgen/graphql.Float
+      - github.com/99designs/gqlgen/graphql.Float64
+      - github.com/99designs/gqlgen/graphql.Float32
+  DateTime:
+    model:
+      - github.com/99designs/gqlgen/graphql.Time
+  Upload:
+    model:
+      - github.com/99designs/gqlgen/graphql.Upload
+  User:
+    model: crmgo/internal/models.User
+    fields:
+      password:
+        resolver: true
+  Organisation:
+    model: crmgo/internal/models.Organisation
+  TeamMember:
+    model: crmgo/internal/models.TeamMember
+  Contact:
+    model: crmgo/internal/models.Contact
+  Property:
+    model: crmgo/internal/models.Property
+  Deal:
+    model: crmgo/internal/models.Deal
+  Discussion:
+    model: crmgo/internal/models.Discussion
+  Meeting:
+    model: crmgo/internal/models.Meeting
+  MeetingNotes:
+    model: crmgo/internal/models.MeetingNotes
+  Task:
+    model: crmgo/internal/models.Task
+  Document:
+    model: crmgo/internal/models.Document
+  Invitation:
+    model: crmgo/internal/models.Invitation
