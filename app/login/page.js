@@ -1,24 +1,42 @@
+// app/login/page.js
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '../providers/AuthProvider';
+import { gql, useMutation } from '@apollo/client';
+
+const LOGIN_MUTATION = gql`
+  mutation Login($email: String!, $password: String!) {
+    login(input: { email: $email, password: $password }) {
+      token
+      user {
+        id
+        email
+        role
+      }
+      setupRequired
+      nextStep
+    }
+  }
+`;
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { user, login, loading } = useAuth(); // Added user here
   const router = useRouter();
 
-  // If already logged in, redirect to dashboard
+  // Use Apollo Client mutation hook
+  const [loginMutation, { loading }] = useMutation(LOGIN_MUTATION);
+
+  // Check if already logged in
   useEffect(() => {
-    if (user) {
-      console.log("User already logged in, redirecting...");
-      window.location.href = '/dashboard';
+    const token = localStorage.getItem('token');
+    if (token) {
+      router.push('/dashboard');
     }
-  }, [user]);
+  }, [router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,20 +48,28 @@ export default function LoginPage() {
         return;
       }
       
-      const result = await login(email, password);
+      // Execute the GraphQL mutation
+      const { data } = await loginMutation({ 
+        variables: { 
+          email, 
+          password 
+        }
+      });
       
-      if (result.success) {
-        if (result.setupRequired) {
-          router.push(`/onboarding/${result.nextStep}`);
+      if (data && data.login) {
+        // Store the token
+        localStorage.setItem('token', data.login.token);
+        
+        // Redirect based on setup requirements
+        if (data.login.setupRequired) {
+          router.push(`/onboarding/${data.login.nextStep}`);
         } else {
           router.push('/dashboard');
         }
-      } else {
-        setError(result.error);
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError('An unexpected error occurred');
+      setError(err.message || 'Login failed');
     }
   };
   

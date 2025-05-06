@@ -15,8 +15,8 @@ model:
 # Where should the resolver implementations go?
 resolver:
   layout: follow-schema
-  dir: internal/graphql/resolvers/generated
-  package: generated
+  dir: internal/graphql/resolvers/
+  package: resolvers
   filename_template: "{name}.resolvers.go"
 
 # Optional: turn on use `gqlgen:"fieldName"` tags in your models
@@ -33,10 +33,6 @@ autobind:
   - "crmgo/internal/models"
 
 # This section declares type mapping between the GraphQL and go type systems
-#
-# The first line in each type will be used as defaults for resolver arguments and
-# modelgen, the others will be allowed when binding to fields. Configure them to
-# your liking
 models:
   ID:
     model:

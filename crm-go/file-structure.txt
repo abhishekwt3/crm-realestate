@@ -1,0 +1,74 @@
+project-root/
+├── cmd/
+│   └── server/
+│       └── main.go                # Main application entry point
+├── internal/
+│   ├── config/
+│   │   └── config.go              # Configuration loading
+│   ├── database/
+│   │   ├── database.go            # Database connection setup
+│   │   └── migrations.go          # Database migrations
+│   ├── middleware/
+│   │   ├── auth.go                # JWT authentication middleware
+│   │   ├── cors.go                # CORS handling middleware
+│   │   └── logging.go             # Request logging middleware
+│   ├── models/
+│   │   ├── user.go                # User model
+│   │   ├── organisation.go        # Organisation model
+│   │   ├── team_member.go         # TeamMember model
+│   │   ├── contact.go             # Contact model
+│   │   ├── property.go            # Property model
+│   │   ├── deal.go                # Deal model
+│   │   ├── discussion.go          # Discussion model
+│   │   ├── meeting.go             # Meeting model
+│   │   ├── meeting_notes.go       # MeetingNotes model
+│   │   ├── task.go                # Task model
+│   │   ├── document.go            # Document model
+│   │   └── invitation.go          # Invitation model
+│   ├── graphql/
+│   │   ├── schema/
+│   │   │   └── schema.graphql     # GraphQL schema definition
+│   │   ├── generated/             # Auto-generated code by gqlgen
+│   │   │   ├── generated.go       # Main generated file
+│   │   │   ├── models_gen.go      # Generated models
+│   │   │   └── resolvers_gen.go   # Generated resolver interfaces
+│   │   ├── resolvers/
+│   │   │   ├── resolver.go        # Root resolver
+│   │   │   ├── user.go            # User resolvers
+│   │   │   ├── auth.go            # Authentication resolvers
+│   │   │   ├── organisation.go    # Organisation resolvers
+│   │   │   ├── team_member.go     # TeamMember resolvers
+│   │   │   ├── contact.go         # Contact resolvers
+│   │   │   ├── property.go        # Property resolvers
+│   │   │   ├── deal.go            # Deal resolvers
+│   │   │   ├── discussion.go      # Discussion resolvers
+│   │   │   ├── meeting.go         # Meeting resolvers
+│   │   │   ├── task.go            # Task resolvers
+│   │   │   └── document.go        # Document resolvers
+│   │   └── directives/
+│   │       └── auth.go            # Auth directive implementation
+│   ├── routes/
+│   │   └── routes.go              # HTTP routes setup
+│   ├── services/
+│   │   ├── email.go               # Email service
+│   │   └── storage.go             # File storage service
+│   └── utils/
+│       ├── jwt.go                 # JWT token utilities
+│       ├── password.go            # Password hashing utilities
+│       └── validators.go          # Input validation utilities
+├── pkg/
+│   └── logger/
+│       └── logger.go              # Logging utilities
+├── migrations/                    # SQL migrations
+│   ├── 001_initial_schema.sql
+│   └── 002_add_indices.sql
+├── static/                        # Static assets
+│   └── playground.html            # Custom GraphQL playground
+├── .env.example                   # Example environment variables
+├── .gitignore                     # Git ignore file
+├── go.mod                         # Go module definition
+├── go.sum                         # Go module checksums
+├── gqlgen.yml                     # gqlgen configuration
+├── Makefile                       # Build and development commands
+├── docker-compose.yml             # Docker Compose configuration
+└── README.md                      # Project documentation

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '../providers/AuthProvider';
+import { useAuth } from '../providers/GraphQLAuthProvider';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -13,8 +13,15 @@ export default function RegisterPage() {
     role: 'admin'
   });
   const [error, setError] = useState('');
-  const { register, loading } = useAuth();
+  const { register, loading, user } = useAuth();
   const router = useRouter();
+
+  // If already logged in, redirect to dashboard
+  useEffect(() => {
+    if (user) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -36,7 +43,7 @@ export default function RegisterPage() {
       return;
     }
     
-    // Register
+    // Register using GraphQL
     const result = await register({
       email: formData.email,
       password: formData.password,
@@ -45,7 +52,11 @@ export default function RegisterPage() {
     
     if (result.success) {
       // If setup is required, redirect to organization creation
-      router.push('/onboarding/create-organization');
+      if (result.setupRequired) {
+        router.push(`/onboarding/${result.nextStep}`);
+      } else {
+        router.push('/dashboard');
+      }
     } else {
       setError(result.error || 'Registration failed');
     }

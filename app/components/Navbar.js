@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useAuth } from '../providers/AuthProvider';
+import { useAuth } from '../providers/GraphQLAuthProvider'; // Updated import
 import { useRouter } from 'next/navigation';
 
 export default function Navbar() {

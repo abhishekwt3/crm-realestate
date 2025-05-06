@@ -1,46 +1,50 @@
+// app/properties/page.js
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../providers/AuthProvider';
-import apiClient from '../../lib/apiClient';
+import { useQuery, gql } from '@apollo/client';
+
+const GET_PROPERTIES = gql`
+  query Properties($status: String) {
+    properties(status: $status) {
+      id
+      name
+      address
+      status
+      owner {
+        id
+        name
+      }
+    }
+  }
+`;
 
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
-  const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [filter, setFilter] = useState('');
   const router = useRouter();
+  
+  const { loading, error, data, refetch } = useQuery(GET_PROPERTIES, {
+    variables: { status: filter || null },
+    skip: !user, // Skip query if user is not authenticated
+  });
 
   useEffect(() => {
     // Redirect to login if not authenticated
     if (!authLoading && !user) {
       router.push('/login');
-      return;
     }
+  }, [user, authLoading, router]);
 
-    // Fetch properties if authenticated
+  // Refresh when filter changes
+  useEffect(() => {
     if (user) {
-      fetchProperties();
+      refetch({ status: filter || null });
     }
-  }, [user, authLoading, router, filter]);
-
-  const fetchProperties = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch properties using apiClient
-      const data = await apiClient.getProperties({ status: filter });
-      setProperties(data.properties || []);
-    } catch (err) {
-      console.error('Error fetching properties:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [filter, refetch, user]);
   
   const handleFilterChange = (e) => {
     setFilter(e.target.value);
@@ -94,7 +98,7 @@ export default function Properties() {
           </select>
           
           <button 
-            onClick={fetchProperties}
+            onClick={() => refetch()}
             className="ml-auto px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
           >
             <span>↻</span> Refresh
@@ -119,12 +123,12 @@ export default function Properties() {
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm">{error}</p>
+              <p className="text-sm">{error.message}</p>
             </div>
           </div>
           <div className="mt-2">
             <button 
-              onClick={fetchProperties}
+              onClick={() => refetch()}
               className="text-sm text-red-700 hover:text-red-900 underline"
             >
               Try Again
@@ -134,7 +138,7 @@ export default function Properties() {
       )}
       
       {/* Empty state */}
-      {!loading && !error && properties.length === 0 && (
+      {!loading && !error && (!data?.properties || data.properties.length === 0) && (
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <h3 className="text-lg font-medium text-gray-900 mb-2">No properties found</h3>
           <p className="text-gray-500 mb-6">Get started by adding your first property.</p>
@@ -148,10 +152,10 @@ export default function Properties() {
       )}
       
       {/* Properties list */}
-      {!loading && !error && properties.length > 0 && (
+      {!loading && !error && data?.properties && data.properties.length > 0 && (
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <ul className="divide-y divide-gray-200">
-            {properties.map((property) => (
+            {data.properties.map((property) => (
               <li key={property.id}>
                 <div className="px-4 py-4 sm:px-6">
                   <div className="flex items-center justify-between">
